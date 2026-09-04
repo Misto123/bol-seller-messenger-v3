@@ -1,0 +1,236 @@
+import express from 'express';
+import cors from 'cors';
+import BolAutomation from './bol-automation.js';
+import { resultsDb } from './database.js';
+
+const app = express();
+const PORT = process.env.PORT || 3100;
+const DEFAULT_PROFILE_ID = process.env.ADSPOWER_PROFILE_ID || 'k1fgmwtq';
+
+app.use(cors());
+app.use(express.json());
+
+const resultsDbInstance = resultsDb;
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    service: 'bol-seller-workflow',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Get all campaigns
+app.get('/api/campaigns', (req, res) => {
+  try {
+    const campaigns = resultsDb.getAllCampaigns();
+    res.json({ campaigns });
+  } catch (error) {
+    console.error('Failed to get campaigns:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get campaign details
+app.get('/api/campaigns/:id', (req, res) => {
+  try {
+    const campaignId = parseInt(req.params.id);
+    const results = resultsDb.getCampaignResults(campaignId);
+    res.json({ results });
+  } catch (error) {
+    console.error('Failed to get campaign details:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get stats
+app.get('/api/stats', (req, res) => {
+  try {
+    const stats = resultsDb.getStats();
+    res.json(stats);
+  } catch (error) {
+    console.error('Failed to get stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Main workflow endpoint
+app.post('/api/run', async (req, res) => {
+  const { keywords, count, messages, names, emails, subjects, phone, profileId, cooldownMinutes = 0, sponsoredOnly = false } = req.body;
+  
+  console.log(`[${new Date().toISOString()}] Starting outreach run:`, {
+    keywords: keywords?.filter(Boolean).join(', '),
+    count,
+    messageTemplates: messages?.filter(Boolean).length,
+    cooldownMinutes,
+    profileId: profileId || DEFAULT_PROFILE_ID || 'auto',
+  });
+
+  let automation = null;
+  let campaignId = null;
+
+  try {
+    const results = [];
+    const actualCount = Math.min(20, Math.max(1, Number(count) || 1));
+    
+    // Create campaign record
+    campaignId = resultsDb.createCampaign(actualCount);
+    const validKeywords = (keywords ?? []).filter(Boolean);
+    const validMessages = (messages ?? []).filter(Boolean);
+    const validNames = (names ?? []).filter(Boolean);
+    const validEmails = (emails ?? []).filter(Boolean);
+    const validSubjects = (subjects ?? []).filter(Boolean);
+
+    if (validKeywords.length === 0) {
+      return res.status(400).json({ error: 'At least one keyword is required' });
+    }
+
+    // Initialize browser automation
+    const targetProfileId = profileId || DEFAULT_PROFILE_ID;
+    if (targetProfileId) {
+      automation = new BolAutomation(targetProfileId);
+      await automation.initialize();
+    }
+
+    // Process each keyword with cooldown
+    for (let keywordIndex = 0; keywordIndex < validKeywords.length; keywordIndex++) {
+      const keyword = validKeywords[keywordIndex];
+      
+      console.log(`[BOL] Processing keyword ${keywordIndex + 1}/${validKeywords.length}: "${keyword}"`);
+      
+      // Process messages for this keyword
+      for (let i = 0; i < actualCount; i++) {
+        const message = validMessages[i % Math.max(validMessages.length, 1)] || '';
+        const name = validNames[i % Math.max(validNames.length, 1)] || '';
+        const email = validEmails[i % Math.max(validEmails.length, 1)] || '';
+        const subject = validSubjects[i % Math.max(validSubjects.length, 1)] || '';
+
+        try {
+          if (automation) {
+            // Real automation flow
+            const sellers = await automation.searchSellers(keyword, sponsoredOnly);
+            const seller = sellers[i % sellers.length];
+            
+            // Replace placeholders in message
+            const processedMessage = message
+              .replace(/\{\{sellerName\}\}/g, seller.name || seller)
+              .replace(/\{\{productTitle\}\}/g, 'product')
+              .replace(/\{\{keyword\}\}/g, keyword)
+              .replace(/\{\{senderName\}\}/g, name)
+              .replace(/\{\{senderEmail\}\}/g, email)
+              .replace(/\{\{senderPhone\}\}/g, phone);
+            
+            const result = await automation.contactSeller(seller, {
+              name,
+              email,
+              phone,
+              subject,
+              message: processedMessage,
+            });
+
+            const resultData = {
+              seller: seller.name || seller,
+              keyword,
+              subject,
+              message: processedMessage.substring(0, 50) + (processedMessage.length > 50 ? '...' : ''),
+              name,
+              email,
+              phone,
+              timestamp: result.timestamp,
+              status: 'sent',
+              reason: null,
+            };
+            results.push(resultData);
+            resultsDb.addResult(campaignId, resultData);
+          } else {
+            // Simulation mode (no profile configured)
+            const processedMessage = message
+              .replace(/\{\{sellerName\}\}/g, `Seller ${i + 1}`)
+              .replace(/\{\{productTitle\}\}/g, 'Sample Product')
+              .replace(/\{\{keyword\}\}/g, keyword)
+              .replace(/\{\{senderName\}\}/g, name)
+              .replace(/\{\{senderEmail\}\}/g, email)
+              .replace(/\{\{senderPhone\}\}/g, phone);
+            
+            const resultData = {
+              seller: `Seller ${i + 1}`,
+              keyword,
+              subject,
+              message: processedMessage.substring(0, 50) + (processedMessage.length > 50 ? '...' : ''),
+              name,
+              email,
+              phone,
+              timestamp: new Date().toISOString(),
+              status: 'sent',
+              reason: null,
+            };
+            results.push(resultData);
+            resultsDb.addResult(campaignId, resultData);
+          }
+
+          // Rate limiting delay
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+          console.error(`Failed to process message ${i + 1} for keyword "${keyword}":`, error);
+          const resultData = {
+            seller: `Seller ${i + 1}`,
+            keyword,
+            subject,
+            timestamp: new Date().toISOString(),
+            status: 'failed',
+            reason: error.message,
+          };
+          results.push(resultData);
+          resultsDb.addResult(campaignId, resultData);
+        }
+      }
+      
+      // Apply cooldown between keywords
+      if (keywordIndex < validKeywords.length - 1 && cooldownMinutes > 0) {
+        const cooldownMs = cooldownMinutes * 60 * 1000;
+        console.log(`[BOL] Cooldown: Waiting ${cooldownMinutes} minutes before next keyword...`);
+        await new Promise(resolve => setTimeout(resolve, cooldownMs));
+      }
+    }
+
+    // Mark campaign as completed
+    resultsDb.markCampaignCompleted(campaignId);
+
+    res.json({
+      success: true,
+      results,
+      campaignId,
+      summary: {
+        total: results.length,
+        sent: results.filter(r => r.status === 'sent').length,
+        failed: results.filter(r => r.status === 'failed').length,
+      }
+    });
+
+  } catch (error) {
+    console.error('Workflow failed:', error);
+    if (campaignId) {
+      resultsDb.markCampaignFailed(campaignId, error.message);
+    }
+    res.status(500).json({ 
+      success: false,
+      error: error.message,
+      results: []
+    });
+  } finally {
+    if (automation) {
+      try {
+        await automation.cleanup();
+      } catch (cleanupError) {
+        console.error('Cleanup failed:', cleanupError);
+      }
+    }
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`✓ BOL Seller Workflow Service running on port ${PORT}`);
+  console.log(`✓ Health check: http://localhost:${PORT}/health`);
+  console.log(`✓ Default profile: ${DEFAULT_PROFILE_ID}`);
+});

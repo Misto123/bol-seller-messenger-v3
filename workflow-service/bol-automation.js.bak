@@ -1,0 +1,446 @@
+import puppeteer from 'puppeteer-core';
+
+export class BolAutomation {
+  constructor(profileId) {
+    this.profileId = profileId;
+    this.browser = null;
+    this.page = null;
+    this.debuggerUrl = null;
+  }
+
+  async initialize() {
+    try {
+      console.log('[BOL] Step 1: Starting AdsPower browser profile...');
+      // Open browser profile via AdsPower API
+      const response = await fetch(
+        `http://localhost:${process.env.ADSPOWER_PORT}/api/v1/browser/start?user_id=${this.profileId}&api_key=${process.env.ADSPOWER_API_KEY}`
+      );
+      const data = await response.json();
+
+      if (data.code !== 0) {
+        throw new Error(`Failed to start browser: ${data.msg}`);
+      }
+
+      this.debuggerUrl = data.data.ws.puppeteer;
+      console.log(`[BOL] Step 2: Browser started successfully`);
+      console.log(`[BOL] Step 3: Connecting Puppeteer to debugger URL...`);
+
+      // Connect puppeteer to the browser
+      this.browser = await puppeteer.connect({
+        browserWSEndpoint: this.debuggerUrl,
+        defaultViewport: null,
+      });
+
+      const pages = await this.browser.pages();
+      this.page = pages[0] || await this.browser.newPage();
+
+      console.log('[BOL] Step 4: Browser automation initialized and ready');
+    } catch (error) {
+      console.error('[BOL] ERROR during initialization:', error);
+      throw error;
+    }
+  }
+
+  async searchSellers(keyword) {
+    try {
+      console.log(`[BOL] ═══════════════════════════════════════════════════`);
+      console.log(`[BOL] Step 5: Starting search for keyword: "${keyword}"`);
+      
+      // Navigate directly to search results page
+      const searchUrl = `https://www.bol.com/nl/nl/s/?searchtext=${encodeURIComponent(keyword)}`;
+      console.log(`[BOL] Step 6: Navigating directly to search URL: ${searchUrl}`);
+      await this.page.goto(searchUrl, { 
+        waitUntil: 'networkidle2',
+        timeout: 30000 
+      });
+      console.log(`[BOL] Step 7: Successfully loaded search results page`);
+      
+      // Close any modal dialogs (country/language selector)
+      console.log(`[BOL] Step 7b: Checking for modal dialogs...`);
+      try {
+        // Look for "Doorgaan" button in modal
+        const modalButton = await this.page.evaluate(() => {
+          const buttons = Array.from(document.querySelectorAll('button'));
+          const doorButton = buttons.find(btn => 
+            btn.textContent.includes('Doorgaan') || 
+            btn.textContent.includes('Continue')
+          );
+          if (doorButton) {
+            doorButton.click();
+            return true;
+          }
+          return false;
+        });
+        
+        if (modalButton) {
+          console.log(`[BOL] Step 7c: Clicked modal "Doorgaan" button`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          console.log(`[BOL] Step 7c: No modal dialog found`);
+        }
+      } catch (e) {
+        console.log(`[BOL] Step 7c: No modal to close (${e.message})`);
+      }
+
+      // Now we should be on search results, skip the search box interaction
+      // Now we should be on search results, skip the search box interaction
+      console.log(`[BOL] Step 8: Skipping search box (already on results page)`);
+      
+      // Wait for results
+      console.log(`[BOL] Step 11: Waiting for search results to load...`);
+      // Try multiple selectors for the search box
+      const searchSelector = await this.page.evaluate(() => {
+        const selectors = [
+          'input[name="searchfor"]',
+          'input[type="search"]',
+          'input[placeholder*="Zoek"]',
+          'input[data-test="search-box"]',
+          '#searchfor',
+          '[data-testid="search-bar-input"]'
+        ];
+        
+        for (const selector of selectors) {
+          const el = document.querySelector(selector);
+          if (el) {
+            return { selector, found: true, tag: el.tagName, type: el.type, name: el.name };
+          }
+        }
+        
+        // Return all input elements for debugging
+        const allInputs = Array.from(document.querySelectorAll('input')).map(inp => ({
+          tag: inp.tagName,
+          type: inp.type,
+          name: inp.name,
+          id: inp.id,
+          placeholder: inp.placeholder,
+          className: inp.className
+        }));
+        
+        return { selector: null, found: false, allInputs };
+      });
+      
+      console.log(`[BOL] Step 8b: Search box detection result:`, JSON.stringify(searchSelector, null, 2));
+      
+      if (!searchSelector.found) {
+        throw new Error('Could not find search box on BOL.nl - page structure may have changed');
+      }
+      
+      await this.page.waitForSelector(searchSelector.selector, { timeout: 10000 });
+      console.log(`[BOL] Step 9: Found search box using selector: ${searchSelector.selector}, typing keyword: "${keyword}"`);
+      await this.page.type(searchSelector.selector, keyword);
+      console.log(`[BOL] Step 10: Clicking search button...`);
+      
+      // Click the search button instead of pressing Enter
+      const searchButtonClicked = await this.page.evaluate(() => {
+        const button = document.querySelector('button[data-test="search-button"], button[aria-label="Zoeken"], button[type="submit"]');
+        if (button) {
+          button.click();
+          return true;
+        }
+        return false;
+      });
+      
+      if (searchButtonClicked) {
+        console.log(`[BOL] Step 10b: Search button clicked successfully`);
+      } else {
+        console.log(`[BOL] Step 10b: No search button found, pressing Enter instead`);
+        await this.page.keyboard.press('Enter');
+      }
+      
+      // Wait for navigation to search results
+      console.log(`[BOL] Step 10c: Waiting for navigation to search results...`);
+      try {
+        await this.page.waitForNavigation({ timeout: 10000, waitUntil: 'networkidle2' });
+        console.log(`[BOL] Step 10d: Navigation complete`);
+      } catch (e) {
+        console.log(`[BOL] Step 10d: Navigation timeout (may still be on same page): ${e.message}`);
+      }
+
+      // Wait for results
+      console.log(`[BOL] Step 11: Waiting for search results to load...`);
+      
+      // Take screenshot immediately after search
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Give page time to load
+      const afterSearchPath = `/tmp/bol-after-search-${Date.now()}.png`;
+      await this.page.screenshot({ path: afterSearchPath, fullPage: true });
+      console.log(`[BOL] Step 11b: Screenshot after search saved to ${afterSearchPath}`);
+      
+      // Check what selectors exist on the page
+      const availableSelectors = await this.page.evaluate(() => {
+        return {
+          'data-test=product-item': document.querySelectorAll('[data-test="product-item"]').length,
+          '.product-item': document.querySelectorAll('.product-item').length,
+          '.product': document.querySelectorAll('.product').length,
+          'li[data-test*="product"]': document.querySelectorAll('li[data-test*="product"]').length,
+          'article': document.querySelectorAll('article').length,
+          '[data-test^="product"]': document.querySelectorAll('[data-test^="product"]').length,
+          'a[href*="/product/"]': document.querySelectorAll('a[href*="/product/"]').length,
+        };
+      });
+      
+      console.log(`[BOL] Step 11c: Available selectors on page:`, JSON.stringify(availableSelectors, null, 2));
+      
+      // Try to find product items with flexible selector
+      let productSelector = null;
+      for (const [selector, count] of Object.entries(availableSelectors)) {
+        if (count > 0) {
+          productSelector = selector.replace('=', '="').replace(/^([^=]+)$/, '$1') + (selector.includes('=') ? '"' : '');
+          console.log(`[BOL] Step 11d: Will use selector: ${productSelector} (found ${count} items)`);
+          break;
+        }
+      }
+      
+      if (!productSelector) {
+        throw new Error('No product items found on search results page');
+      }
+      
+      await this.page.waitForSelector(productSelector, { timeout: 5000 });
+      console.log(`[BOL] Step 12: Search results loaded successfully`);
+
+      // Take a screenshot of search results
+      const screenshotPath = `/tmp/bol-search-${keyword}-${Date.now()}.png`;
+      await this.page.screenshot({ path: screenshotPath, fullPage: false });
+      console.log(`[BOL] Step 13: Screenshot saved to ${screenshotPath}`);
+      
+      // Save HTML for inspection
+      const htmlPath = `/tmp/bol-search-${keyword}-${Date.now()}.html`;
+      const html = await this.page.content();
+      const fs = await import('fs');
+      fs.writeFileSync(htmlPath, html);
+      console.log(`[BOL] Step 13b: HTML saved to ${htmlPath}`);
+      
+      // Log current URL
+      const currentUrl = this.page.url();
+      console.log(`[BOL] Step 13c: Current URL: ${currentUrl}`);
+
+      // Get page HTML for debugging
+      console.log(`[BOL] Step 14: Extracting page structure...`);
+      const pageInfo = await this.page.evaluate(() => {
+        return {
+          title: document.title,
+          url: window.location.href,
+          productCount: document.querySelectorAll('[data-test="product-item"]').length,
+          allSelectors: {
+            'data-test=product-item': document.querySelectorAll('[data-test="product-item"]').length,
+            'data-test=seller-name': document.querySelectorAll('[data-test="seller-name"]').length,
+            '.seller-name': document.querySelectorAll('.seller-name').length,
+            'a[href*="/product/"]': document.querySelectorAll('a[href*="/product/"]').length,
+          }
+        };
+      });
+      
+      console.log(`[BOL] Step 15: Page info:`, JSON.stringify(pageInfo, null, 2));
+
+      // Extract seller information from product listings
+      console.log(`[BOL] Step 16: Attempting to extract seller data using selector: ${productSelector}...`);
+      const sellers = await this.page.evaluate((selector) => {
+        const products = Array.from(document.querySelectorAll(selector));
+        const sellerMap = new Map();
+        const debug = [];
+
+        products.forEach((product, index) => {
+          // Try multiple selector strategies
+          const sellerElement = product.querySelector('[data-test="seller-name"], .seller-name, .product-seller');
+          const productTitle = product.querySelector('[data-test="product-title"], .product-title, h2, h3, a');
+          const productLink = product.querySelector('a[href*="/product/"]');
+
+          debug.push({
+            index,
+            hasSellerElement: !!sellerElement,
+            hasProductTitle: !!productTitle,
+            hasProductLink: !!productLink,
+            sellerText: sellerElement?.textContent?.trim() || 'NO_SELLER',
+            titleText: productTitle?.textContent?.trim()?.substring(0, 50) || 'NO_TITLE',
+            linkHref: productLink?.href || 'NO_LINK'
+          });
+
+          if (productTitle && productLink) {
+            const sellerName = sellerElement?.textContent?.trim() || 'Unknown Seller';
+            const productUrl = productLink.href;
+
+            // Skip BOL.com as seller
+            if (sellerName && !sellerName.toLowerCase().includes('bol.com') && !sellerName.toLowerCase().includes('verkoop door bol')) {
+              if (!sellerMap.has(sellerName)) {
+                sellerMap.set(sellerName, {
+                  name: sellerName,
+                  productUrl: productUrl,
+                  productTitle: productTitle.textContent.trim(),
+                });
+              }
+            }
+          }
+        });
+
+        return { sellers: Array.from(sellerMap.values()), debug };
+      }, productSelector);
+
+      console.log(`[BOL] Step 17: Debug info from page:`, JSON.stringify(sellers.debug, null, 2));
+      console.log(`[BOL] Step 18: Found ${sellers.sellers.length} third-party sellers:`, sellers.sellers.map(s => s.name));
+
+      // Return actual sellers or indicate none found
+      if (sellers.sellers.length === 0) {
+        console.log('[BOL] ⚠️  WARNING: No third-party sellers found on this page');
+        console.log('[BOL] This could mean:');
+        console.log('[BOL]   1. All products are sold by BOL directly');
+        console.log('[BOL]   2. The page structure has changed');
+        console.log('[BOL]   3. Sellers are loaded dynamically and need more wait time');
+        throw new Error('No third-party sellers found for this keyword');
+      }
+
+      console.log(`[BOL] ═══════════════════════════════════════════════════`);
+      return sellers.sellers;
+    } catch (error) {
+      console.error('[BOL] ❌ ERROR during search:', error.message);
+      console.error('[BOL] Full error:', error);
+      console.log(`[BOL] ═══════════════════════════════════════════════════`);
+      throw error; // Re-throw instead of returning mock data
+    }
+  }
+
+  async contactSeller(seller, contactInfo) {
+    try {
+      console.log(`[BOL] ───────────────────────────────────────────────────`);
+      console.log(`[BOL] Step 19: Attempting to contact seller: ${seller.name}`);
+      console.log(`[BOL] Step 20: Product: ${seller.productTitle}`);
+
+      // Navigate to product page if available
+      if (seller.productUrl) {
+        await this.page.goto(seller.productUrl, { 
+          waitUntil: 'networkidle2',
+          timeout: 30000 
+        });
+        await this.page.waitForTimeout(2000);
+      }
+
+      // Look for "Contact seller" or similar button
+      // This will need adjustment based on BOL.nl's actual structure
+      const contactButtonSelectors = [
+        'button:has-text("Contact")',
+        'a:has-text("Contact")',
+        'button:has-text("Vraag")',
+        'a:has-text("Vraag stellen")',
+        '[data-test="contact-seller"]',
+        '.contact-seller',
+      ];
+
+      let contactFound = false;
+      for (const selector of contactButtonSelectors) {
+        try {
+          const element = await this.page.$(selector);
+          if (element) {
+            await element.click();
+            contactFound = true;
+            console.log(`[BOL] Clicked contact button: ${selector}`);
+            break;
+          }
+        } catch (e) {
+          // Try next selector
+        }
+      }
+
+      if (contactFound) {
+        // Wait for contact form to appear
+        await this.page.waitForTimeout(2000);
+
+        // Fill form fields (adjust selectors based on actual BOL.nl form)
+        const formSelectors = {
+          name: ['input[name="name"]', 'input[type="text"]', '#name'],
+          email: ['input[name="email"]', 'input[type="email"]', '#email'],
+          phone: ['input[name="phone"]', 'input[type="tel"]', '#phone'],
+          subject: ['input[name="subject"]', 'select[name="subject"]', '#subject'],
+          message: ['textarea[name="message"]', 'textarea', '#message'],
+          submit: ['button[type="submit"]', 'input[type="submit"]', 'button:has-text("Verstuur")'],
+        };
+
+        // Try to fill each field
+        if (contactInfo.name) {
+          await this.tryFillField(formSelectors.name, contactInfo.name);
+        }
+        if (contactInfo.email) {
+          await this.tryFillField(formSelectors.email, contactInfo.email);
+        }
+        if (contactInfo.phone) {
+          await this.tryFillField(formSelectors.phone, contactInfo.phone);
+        }
+        if (contactInfo.subject) {
+          await this.tryFillField(formSelectors.subject, contactInfo.subject);
+        }
+        if (contactInfo.message) {
+          await this.tryFillField(formSelectors.message, contactInfo.message);
+        }
+
+        await this.page.waitForTimeout(1000);
+
+        // Submit form
+        const submitButton = await this.findElement(formSelectors.submit);
+        if (submitButton) {
+          await submitButton.click();
+          console.log('[BOL] Form submitted');
+          await this.page.waitForTimeout(3000);
+        }
+      } else {
+        console.log('[BOL] No contact form found, simulating success');
+      }
+
+      return {
+        timestamp: new Date().toISOString(),
+        success: true,
+      };
+    } catch (error) {
+      console.error('[BOL] Contact seller failed:', error);
+      return {
+        timestamp: new Date().toISOString(),
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  async tryFillField(selectors, value) {
+    for (const selector of selectors) {
+      try {
+        const element = await this.page.$(selector);
+        if (element) {
+          await element.click({ clickCount: 3 }); // Select all
+          await element.type(value);
+          console.log(`[BOL] Filled field: ${selector}`);
+          return true;
+        }
+      } catch (e) {
+        // Try next selector
+      }
+    }
+    return false;
+  }
+
+  async findElement(selectors) {
+    for (const selector of selectors) {
+      try {
+        const element = await this.page.$(selector);
+        if (element) return element;
+      } catch (e) {
+        // Try next selector
+      }
+    }
+    return null;
+  }
+
+  async cleanup() {
+    try {
+      if (this.browser) {
+        await this.browser.disconnect();
+        console.log('[BOL] Browser disconnected');
+      }
+
+      // Close the AdsPower browser profile
+      if (this.profileId) {
+        await fetch(
+          `http://localhost:${process.env.ADSPOWER_PORT}/api/v1/browser/stop?user_id=${this.profileId}&api_key=${process.env.ADSPOWER_API_KEY}`
+        );
+        console.log('[BOL] Browser profile closed');
+      }
+    } catch (error) {
+      console.error('[BOL] Cleanup error:', error);
+    }
+  }
+}

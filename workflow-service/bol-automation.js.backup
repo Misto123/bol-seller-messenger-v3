@@ -1,0 +1,163 @@
+// This is the working version that visits individual product pages
+// Based on successful tests from earlier
+
+import puppeteer from 'puppeteer-core';
+
+class BolAutomation {
+  constructor(profileId) {
+    this.profileId = profileId;
+    this.browser = null;
+    this.page = null;
+    this.adsPowerApiUrl = process.env.ADSPOWER_API_URL || 'http://localhost:50326';
+    this.adsPowerApiKey = process.env.ADSPOWER_API_KEY || '746feb8ab409fbb27a0377a864279e6c000f879a7a0e5329';
+  }
+
+  async initialize() {
+    console.log(`[BOL] Initializing browser with profile ${this.profileId}...`);
+    
+    // Start AdsPower browser profile
+    const startResponse = await fetch(
+      `${this.adsPowerApiUrl}/api/v1/browser/start?user_id=${this.profileId}`,
+      {
+        headers: { 'Authorization': `Bearer ${this.adsPowerApiKey}` }
+      }
+    );
+    
+    const startData = await startResponse.json();
+    if (startData.code !== 0) {
+      throw new Error(`Failed to start browser: ${startData.msg}`);
+    }
+    
+    const wsEndpoint = startData.data.ws.puppeteer;
+    console.log(`[BOL] Connecting to browser at ${wsEndpoint}`);
+    
+    this.browser = await puppeteer.connect({
+      browserWSEndpoint: wsEndpoint,
+      defaultViewport: null
+    });
+    
+    const pages = await this.browser.pages();
+    this.page = pages[0] || await this.browser.newPage();
+    
+    console.log(`[BOL] Browser initialized successfully`);
+  }
+
+  async searchSellers(keyword) {
+    console.log(`[BOL] Searching for keyword: "${keyword}"`);
+    
+    // Navigate directly to search URL
+    const searchUrl = `https://www.bol.com/nl/nl/s/?searchtext=${encodeURIComponent(keyword)}`;
+    await this.page.goto(searchUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout: 60000
+    });
+    
+    console.log(`[BOL] Loaded search results page`);
+    
+    // Wait for page to load
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Extract all product links
+    const productLinks = await this.page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a[href*="/p/"]'));
+      const uniqueLinks = new Map();
+      
+      links.forEach(link => {
+        const href = link.href;
+        if (href && href.includes('/p/') && !uniqueLinks.has(href)) {
+          const title = link.textContent.trim() || link.getAttribute('aria-label') || 'Unknown Product';
+          uniqueLinks.set(href, { url: href, title });
+        }
+      });
+      
+      return Array.from(uniqueLinks.values());
+    });
+    
+    console.log(`[BOL] Found ${productLinks.length} product links`);
+    
+    if (productLinks.length === 0) {
+      throw new Error('No product links found');
+    }
+    
+    // Visit each product page to find sellers
+    const sellers = [];
+    const maxToCheck = Math.min(10, productLinks.length);
+    
+    for (let i = 0; i < maxToCheck; i++) {
+      const product = productLinks[i];
+      console.log(`[BOL] Checking product ${i + 1}/${maxToCheck}: ${product.url}`);
+      
+      try {
+        await this.page.goto(product.url, {
+          waitUntil: 'domcontentloaded',
+          timeout: 60000
+        });
+        
+        // Wait for page to render
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Extract seller name
+        const sellerInfo = await this.page.evaluate(() => {
+          const sellerButton = document.querySelector('button[aria-haspopup="dialog"] > span.underline > span[aria-hidden="true"]');
+          if (sellerButton) {
+            return { seller: sellerButton.textContent.trim() };
+          }
+          return null;
+        });
+        
+        if (sellerInfo && sellerInfo.seller) {
+          const sellerName = sellerInfo.seller.toLowerCase();
+          
+          // Skip if sold by BOL directly
+          if (sellerName.includes('bol') && !sellerName.includes('bollebozen')) {
+            console.log(`[BOL] Product ${i + 1}: Sold by BOL.com directly, skipping`);
+            continue;
+          }
+          
+          console.log(`[BOL] Product ${i + 1}: Found third-party seller: ${sellerInfo.seller}`);
+          sellers.push({
+            name: sellerInfo.seller,
+            productTitle: product.title,
+            productUrl: product.url
+          });
+          
+          // Stop if we found enough
+          if (sellers.length >= 2) {
+            break;
+          }
+        } else {
+          console.log(`[BOL] Product ${i + 1}: No seller info found`);
+        }
+        
+      } catch (error) {
+        console.log(`[BOL] Product ${i + 1}: Error - ${error.message}`);
+      }
+    }
+    
+    console.log(`[BOL] Found ${sellers.length} third-party sellers`);
+    
+    if (sellers.length === 0) {
+      throw new Error('No third-party sellers found (all sold by BOL.com)');
+    }
+    
+    return sellers;
+  }
+
+  async contactSeller(seller, messageData) {
+    // TODO: Implement contact form submission
+    console.log(`[BOL] Would contact seller: ${seller.name}`);
+    return {
+      seller: seller.name,
+      success: true,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  async cleanup() {
+    if (this.browser) {
+      await this.browser.disconnect();
+    }
+  }
+}
+
+export default BolAutomation;
