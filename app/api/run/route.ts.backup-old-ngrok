@@ -10,12 +10,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { 
       keywords = [], 
-      messages = [],
-      names = [],
-      emails = [],
-      subjects = [],
-      phone = '',
-      count = 1,
+      messageTemplates = [],
+      senderName = '',
+      senderEmail = '',
+      senderPhone = '',
       filterSponsored = false 
     } = body;
 
@@ -56,31 +54,25 @@ export async function POST(request: NextRequest) {
 
           // Process each seller
           for (const seller of sellers) {
-            const template = messages[0] || 'Hello {{sellerName}}, interested in {{productTitle}}';
-            const senderName = names[0] || '';
-            const senderEmail = emails[0] || '';
-            const subject = subjects[0] || 'Product inquiry';
-            
+            const template = messageTemplates[0] || 'Hello {{sellerName}}, interested in {{productTitle}}';
             const message = template
               .replace(/\{\{sellerName\}\}/g, seller.name)
-              .replace(/\{\{productTitle\}\}/g, seller.productTitle)
-              .replace(/\{\{senderName\}\}/g, senderName)
-              .replace(/\{\{senderEmail\}\}/g, senderEmail)
-              .replace(/\{\{senderPhone\}\}/g, phone);
+              .replace(/\{\{productTitle\}\}/g, seller.productTitle);
 
             const result = await automation.contactSeller(seller, {
               name: senderName,
               email: senderEmail,
-              phone,
-              subject,
+              phone: senderPhone,
               message,
             });
 
             results.push({
               seller: seller.name,
               keyword,
-              subject,
-              message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
+              productTitle: seller.productTitle,
+              productUrl: seller.productUrl,
+              sponsored: seller.sponsored,
+              message: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
               timestamp: result.timestamp,
               status: 'sent',
             });
@@ -102,19 +94,20 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
+      success: true,
       results,
+      summary: {
+        total: results.length,
+        sent: results.filter(r => r.status === 'sent').length,
+        failed: results.filter(r => r.status === 'failed').length,
+      }
     });
 
   } catch (error: any) {
     console.error('[API] Campaign error:', error);
     return NextResponse.json({
-      results: [{
-        seller: 'System Error',
-        keyword: '',
-        status: 'failed',
-        reason: error.message,
-        timestamp: new Date().toISOString(),
-      }]
+      success: false,
+      error: error.message
     }, { status: 500 });
   }
 }
