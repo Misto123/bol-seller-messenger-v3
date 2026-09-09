@@ -1,3 +1,4 @@
+@import "tailwindcss";
 @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap");
 
 :root { color-scheme: light; --bg: #f4f7f3; --panel: #fff; --line: #d7e0da; --text: #18221e; --muted: #64736c; --green: #74b83f; --orange: #c95e38; }
