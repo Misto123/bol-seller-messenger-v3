@@ -17,7 +17,7 @@ export interface ContactResult {
 export class BolAutomation {
   private profileId: string;
   private cloudBrowser: CloudBrowserClient;
-  private sessionId: string | null = null;
+  private browserId: string | null = null;
   private puppeteerUrl: string | null = null;
 
   constructor(profileId: string, cloudBrowserUrl: string, cloudBrowserApiKey: string) {
@@ -30,14 +30,14 @@ export class BolAutomation {
     
     const startResult = await this.cloudBrowser.startBrowser(this.profileId, 'adspower');
     
-    if (!startResult.success) {
-      throw new Error(`Failed to start browser: ${startResult.error}`);
+    if (!startResult.success || !startResult.data) {
+      throw new Error(`Failed to start browser: ${startResult.error || 'Unknown error'}`);
     }
     
-    this.sessionId = startResult.sessionId;
-    this.puppeteerUrl = startResult.puppeteerUrl;
+    this.browserId = startResult.data.browserId;
+    this.puppeteerUrl = startResult.data.puppeteerUrl;
     
-    console.log(`[BOL] Browser started, session: ${this.sessionId}`);
+    console.log(`[BOL] Browser started, ID: ${this.browserId}`);
   }
 
   async searchProducts(keyword: string, sponsoredOnly: boolean = false): Promise<Seller[]> {
@@ -153,10 +153,10 @@ export class BolAutomation {
   }
 
   async cleanup() {
-    if (this.sessionId) {
-      console.log(`[BOL] Stopping browser session ${this.sessionId}`);
+    if (this.browserId) {
+      console.log(`[BOL] Stopping browser ${this.browserId}`);
       try {
-        await this.cloudBrowser.stopBrowser(this.sessionId);
+        await this.cloudBrowser.stopBrowser(this.browserId, 'adspower');
       } catch (error) {
         console.error(`[BOL] Error stopping browser:`, error);
       }

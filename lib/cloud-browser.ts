@@ -3,9 +3,12 @@
 
 export interface BrowserStartResponse {
   success: boolean;
-  sessionId: string;
-  puppeteerUrl: string;
-  debuggerUrl?: string;
+  data?: {
+    puppeteerUrl: string;
+    browserId: string;
+    timeout: number;
+    remainingTime: number;
+  };
   error?: string;
 }
 
@@ -33,20 +36,22 @@ export class CloudBrowserClient {
    * @param provider - Browser provider (default: "adspower")
    */
   async startBrowser(profileId: string, provider: string = 'adspower'): Promise<BrowserStartResponse> {
-    const response = await fetch(`${this.apiUrl}/start`, {
+    const response = await fetch(`${this.apiUrl}/browsers/start`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': this.apiKey,
+        'x_api_key': this.apiKey,
       },
       body: JSON.stringify({
         profileId,
         provider,
+        timeout: 1800000, // 30 minutes
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to start browser: ${response.statusText}`);
+      const text = await response.text();
+      throw new Error(`Failed to start browser: ${response.status} ${text}`);
     }
 
     return response.json();
@@ -54,22 +59,25 @@ export class CloudBrowserClient {
 
   /**
    * Stop a browser session
-   * @param sessionId - Session ID returned from startBrowser
+   * @param browserId - Browser ID returned from startBrowser
+   * @param provider - Browser provider used when starting
    */
-  async stopBrowser(sessionId: string): Promise<BrowserStopResponse> {
-    const response = await fetch(`${this.apiUrl}/stop`, {
+  async stopBrowser(browserId: string, provider: string = 'adspower'): Promise<BrowserStopResponse> {
+    const response = await fetch(`${this.apiUrl}/browsers/stop`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': this.apiKey,
+        'x_api_key': this.apiKey,
       },
       body: JSON.stringify({
-        sessionId,
+        browserId,
+        provider,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to stop browser: ${response.statusText}`);
+      const text = await response.text();
+      throw new Error(`Failed to stop browser: ${response.status} ${text}`);
     }
 
     return response.json();
@@ -78,10 +86,10 @@ export class CloudBrowserClient {
   /**
    * Check API status
    */
-  async checkStatus(): Promise<{ status: string; version: string }> {
-    const response = await fetch(`${this.apiUrl}/status`, {
+  async checkStatus(): Promise<any> {
+    const response = await fetch(`${this.apiUrl}/browsers/status`, {
       headers: {
-        'x-api-key': this.apiKey,
+        'x_api_key': this.apiKey,
       },
     });
 
