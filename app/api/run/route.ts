@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Validate required environment variables
     const cloudBrowserUrl = process.env.CLOUD_BROWSER_URL;
     const cloudBrowserApiKey = process.env.CLOUD_BROWSER_API_KEY;
-    const profileId = process.env.ADSPOWER_PROFILE_ID || 'k1fgmwtq';
+    const profileId = 'k1fgmwtq'; // TODO: Make dynamic per user later
 
     if (!cloudBrowserUrl || !cloudBrowserApiKey) {
       return NextResponse.json({

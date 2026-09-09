@@ -2,29 +2,24 @@
 
 ## Environment Variables Required
 
-You need to configure these environment variables in Vercel:
+You need to configure these **2 environment variables** in Vercel:
 
-### 1. Cloud Browser API Configuration
+### Cloud Browser API Configuration
 
 **CLOUD_BROWSER_URL**
 - Value: `http://65.21.199.228:3000`
 - Description: URL of the Cloud Browser API service
 
 **CLOUD_BROWSER_API_KEY**
-- Value: Get from 1Password vault
+- Value: Get from 1Password vault under "Rebel Cloud Browser api"
 - Description: API key for authenticating with Cloud Browser API
 - Security: Keep this secret, never commit to git
 
-**ADSPOWER_PROFILE_ID**
-- Value: `k1fgmwtq` (or your AdsPower profile ID)
-- Description: AdsPower browser profile ID to use for automation
+### Notes
 
-### 2. Application Password (Optional)
-
-**WORKSPACE_PASSWORD**
-- Value: Your chosen password
-- Description: Password to access the admin interface
-- Default: If not set, password protection is disabled
+- **ADSPOWER_PROFILE_ID** is hardcoded to `k1fgmwtq` for now
+- TODO: Will be made dynamic per user in the future
+- **WORKSPACE_PASSWORD** is optional (for admin interface protection)
 
 ## How to Set Environment Variables in Vercel
 
@@ -36,7 +31,7 @@ You need to configure these environment variables in Vercel:
 4. Add each variable:
    - **Key**: Variable name (e.g., `CLOUD_BROWSER_API_KEY`)
    - **Value**: The actual value
-   - **Environments**: Select `Production`, `Preview`, and `Development` (or just Production)
+   - **Environments**: Select `Production` (and optionally Preview/Development)
 5. Click **Save**
 6. **Redeploy** your application for changes to take effect
 
@@ -56,15 +51,11 @@ vercel link
 # Add environment variables
 vercel env add CLOUD_BROWSER_URL
 # Enter value: http://65.21.199.228:3000
-# Select environments: Production, Preview, Development
+# Select environments: Production
 
 vercel env add CLOUD_BROWSER_API_KEY
 # Enter value: [paste from 1Password]
-# Select environments: Production, Preview, Development
-
-vercel env add ADSPOWER_PROFILE_ID
-# Enter value: k1fgmwtq
-# Select environments: Production, Preview, Development
+# Select environments: Production
 
 # Trigger a new deployment
 vercel --prod
@@ -93,19 +84,19 @@ After setting environment variables and deploying:
    ```bash
    curl -X POST https://bol-seller-messenger-v3.vercel.app/api/run \
      -H "Content-Type: application/json" \
-     -d '{"keywords":["test"]}'
+     -d '{"keywords":["laptop"]}'
    ```
-3. **Check browser logs** in Vercel Functions logs to see if Cloud Browser API is connecting
+3. **Check Vercel Function logs** to see if Cloud Browser API is connecting
 
 ## Troubleshooting
 
 ### Error: "Cloud Browser API not configured"
 - Environment variables are not set in Vercel
-- Solution: Add the variables in Vercel dashboard and redeploy
+- Solution: Add the 2 required variables in Vercel dashboard and redeploy
 
 ### Error: "Failed to start browser"
-- Invalid API key or profile ID
-- Solution: Check API key in 1Password, verify profile ID exists
+- Invalid API key or the hardcoded profile ID doesn't exist
+- Solution: Check API key in 1Password, verify profile `k1fgmwtq` exists in Cloud Browser
 
 ### Error: "Timeout connecting to browser"
 - Cloud Browser API server is down
@@ -117,16 +108,18 @@ After setting environment variables and deploying:
 - Frontend on Vercel → ngrok URL → Mac Mini localhost:3100
 - Needed Mac Mini running 24/7
 - Needed ngrok tunnel
+- 3+ environment variables
 
 **After (Cloud Browser API):**
 - Frontend on Vercel → Cloud Browser API (65.21.199.228:3000) → Remote browsers
 - No Mac Mini dependency
 - No ngrok needed
-- Everything runs in the cloud
+- Only 2 environment variables needed
+- Profile ID hardcoded (will be dynamic later)
 
 ## Next Steps
 
-1. Set the environment variables in Vercel (see above)
+1. Set the **2 environment variables** in Vercel (see above)
 2. Push code to GitHub (triggers automatic deployment)
 3. Test the deployed application
 4. Monitor logs for any issues

@@ -7,6 +7,7 @@
 - ✅ Created `lib/bol-automation.ts` - Refactored BOL automation using cloud browsers
 - ✅ Updated `app/api/run/route.ts` - API endpoint now uses Cloud Browser API
 - ✅ Added `puppeteer-core` dependency for browser control
+- ✅ Hardcoded profile ID `k1fgmwtq` (will be dynamic later)
 - ✅ Pushed all changes to GitHub
 
 ### 2. Architecture Changed
@@ -23,17 +24,18 @@ User → Vercel Frontend → ngrok tunnel → Mac Mini (localhost:3100)
 User → Vercel (Frontend + Backend) → Cloud Browser API (65.21.199.228:3000)
                                            ↓
                                       Remote AdsPower Browsers
+                                      (Profile: k1fgmwtq)
 ```
 
 ### 3. Deployment Status
 - ✅ V3 Vercel project working: https://bol-seller-messenger-v3.vercel.app
 - ✅ GitHub repo connected and auto-deploying
-- ✅ Code pushed (commit: `0e3d85ec`)
+- ✅ Code pushed (latest commit)
 - ⏳ Waiting for Vercel build to complete
 
 ## 🔧 Required Actions
 
-### Set Environment Variables in Vercel
+### Set Only 2 Environment Variables in Vercel
 
 **You must configure these in Vercel dashboard before the app will work:**
 
@@ -43,25 +45,18 @@ User → Vercel (Frontend + Backend) → Cloud Browser API (65.21.199.228:3000)
 2. **CLOUD_BROWSER_API_KEY**
    - Value: Get from 1Password under "Rebel Cloud Browser api"
 
-3. **ADSPOWER_PROFILE_ID**
-   - Value: `k1fgmwtq` (or your profile ID)
+**Note:** Profile ID is hardcoded to `k1fgmwtq` - no need to set it as env var
 
-### How to Set (Choose one method):
+### How to Set:
 
-**Option A: Vercel Dashboard (Easy)**
+**Vercel Dashboard (Recommended)**
 1. Go to: https://vercel.com/bram-1592s-projects/bol-seller-messenger-v3/settings/environment-variables
-2. Add each variable above
-3. Select "Production" environment
-4. Click Save
-5. Redeploy the project
-
-**Option B: Vercel CLI**
-```bash
-vercel env add CLOUD_BROWSER_URL
-vercel env add CLOUD_BROWSER_API_KEY
-vercel env add ADSPOWER_PROFILE_ID
-vercel --prod
-```
+2. Click "Add New"
+3. Add `CLOUD_BROWSER_URL` = `http://65.21.199.228:3000`
+4. Add `CLOUD_BROWSER_API_KEY` = [value from 1Password]
+5. Select "Production" environment for both
+6. Click Save
+7. Go to Deployments → Click "Redeploy" on latest deployment
 
 ## 📋 Verification Steps
 
@@ -89,19 +84,27 @@ After setting environment variables:
 2. ✅ **No ngrok needed** - Direct API calls
 3. ✅ **Better reliability** - Cloud infrastructure
 4. ✅ **Easier scaling** - Serverless functions
-5. ✅ **Simpler deployment** - Just set env vars and deploy
+5. ✅ **Simpler deployment** - Only 2 env vars needed
+6. ✅ **Faster setup** - Profile ID hardcoded
 
 ## 🚀 Next Steps
 
-1. **Set the 3 environment variables** (see above)
+1. **Set the 2 environment variables** (see above)
 2. **Wait for automatic deployment** to complete
 3. **Test the application** at https://bol-seller-messenger-v3.vercel.app
 4. **Monitor logs** for any issues
+
+## 📝 Future Improvements
+
+- [ ] Make profile ID dynamic per user (currently hardcoded to `k1fgmwtq`)
+- [ ] Add user authentication
+- [ ] Support multiple AdsPower profiles
+- [ ] Add profile selection in UI
 
 ## 📞 Support
 
 If you encounter issues:
 - Check Vercel deployment logs
 - Check Cloud Browser API status: http://65.21.199.228:3000/status
-- Verify environment variables are set correctly
+- Verify the 2 environment variables are set correctly
 - Check API key from 1Password is correct
