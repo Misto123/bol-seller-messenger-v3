@@ -67,8 +67,9 @@ export async function insertMessageLog(log: MessageLog): Promise<number> {
       return 0;
     }
 
-    console.log(`[DB] Message logged to Supabase (ID: ${data.id})`);
-    return data.id;
+    const insertedId = (data as any)?.id || 0;
+    console.log(`[DB] Message logged to Supabase (ID: ${insertedId})`);
+    return insertedId;
   } catch (error: any) {
     console.error('[DB] Exception:', error.message);
     return 0;
@@ -95,7 +96,7 @@ export async function getMessageLogs(limit: number = 100, offset: number = 0): P
       return [];
     }
 
-    return data as MessageLog[];
+    return (data || []) as MessageLog[];
   } catch (error: any) {
     console.error('[DB] Exception:', error.message);
     return [];
