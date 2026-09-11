@@ -1,6 +1,6 @@
 // BOL.nl automation using Cloud Browser API
 import { CloudBrowserClient } from './cloud-browser';
-import { insertMessageLog, MessageLog } from './db';
+import { insertMessageLog, MessageLog } from './supabase-db';
 import path from 'path';
 import fs from 'fs';
 

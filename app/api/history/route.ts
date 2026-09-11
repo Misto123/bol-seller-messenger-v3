@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMessageLogs, getMessageLogStats } from '@/lib/db';
+import { getMessageLogs, getMessageLogStats } from '@/lib/supabase-db';
 
 export const runtime = 'nodejs';
 
