@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Header from "./components/Header";
 
 type Result = {
   seller: string;
@@ -12,11 +13,18 @@ type Result = {
   reason?: string;
 };
 
+interface MessageTemplate {
+  id: string;
+  name: string;
+  content: string;
+  enabled: boolean;
+}
+
 interface CampaignSettings {
   keywords: string[];
   cooldownMinutes: number;
   messagesPerKeyword: number;
-  messageTemplates: string[];
+  messageTemplates: MessageTemplate[];
   senderName: string;
   senderEmail: string;
   senderPhone: string;
@@ -78,6 +86,15 @@ export default function Home() {
     const stored = localStorage.getItem('campaignSettings');
     if (stored) {
       const parsed = JSON.parse(stored);
+      // Migrate old format to new format if needed
+      if (parsed.messageTemplates && typeof parsed.messageTemplates[0] === 'string') {
+        parsed.messageTemplates = parsed.messageTemplates.map((content: string, index: number) => ({
+          id: `${Date.now()}-${index}`,
+          name: `Template ${index + 1}`,
+          content,
+          enabled: true,
+        }));
+      }
       setSettings(parsed);
       setPhone(parsed.senderPhone || "0624530190");
     }
@@ -112,7 +129,12 @@ export default function Home() {
     try {
       const messagesToSend = useCustomMessage && customMessage
         ? [customMessage]
-        : settings.messageTemplates;
+        : settings.messageTemplates.filter(t => t.enabled).map(t => t.content);
+
+      if (messagesToSend.length === 0) {
+        setRunError("Selecteer minimaal één template in de instellingen");
+        return;
+      }
 
       const response = await fetch("/api/run", {
         method: "POST",
@@ -158,7 +180,10 @@ export default function Home() {
   }
 
   return (
-    <div className="container">
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      <div className="container">
       <div className="header">
         <div>
           <h1>BOL Seller Messenger</h1>
@@ -181,17 +206,17 @@ export default function Home() {
         </div>
       )}
 
-      {settings && (
-        <div className="info-box">
-          <h3>Huidige Instellingen:</h3>
-          <div className="info-grid">
-            <p>• {settings.keywords.length} zoekwoorden geconfigureerd</p>
-            <p>• {settings.messagesPerKeyword} berichten per zoekwoord</p>
-            <p>• {settings.cooldownMinutes} minuten cooldown</p>
-            <p>• {settings.messageTemplates.length} bericht templates</p>
+        {settings && (
+          <div className="info-box">
+            <h3>Huidige Instellingen:</h3>
+            <div className="info-grid">
+              <p>• {settings.keywords.length} zoekwoorden geconfigureerd</p>
+              <p>• {settings.messagesPerKeyword} berichten per zoekwoord</p>
+              <p>• {settings.cooldownMinutes} minuten cooldown</p>
+              <p>• {settings.messageTemplates.filter(t => t.enabled).length} van {settings.messageTemplates.length} templates actief</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       <div className="form">
         {settings && (
@@ -243,18 +268,21 @@ export default function Home() {
               {!useCustomMessage && (
                 <>
                   <p className="hint" style={{ marginTop: '8px', marginBottom: '12px' }}>
-                    Het systeem zal willekeurig een template kiezen uit uw {settings.messageTemplates.length} geconfigureerde templates
+                    Het systeem zal willekeurig een template kiezen uit uw {settings.messageTemplates.filter(t => t.enabled).length} actieve templates
                   </p>
                   <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', maxHeight: '300px', overflowY: 'auto' }}>
-                    <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: 600, color: '#374151' }}>Preview van templates:</h4>
-                    {settings.messageTemplates.map((template, index) => (
-                      <div key={index} style={{ marginBottom: '12px', padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>Template {index + 1}:</div>
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: 600, color: '#374151' }}>Actieve templates:</h4>
+                    {settings.messageTemplates.filter(t => t.enabled).map((template) => (
+                      <div key={template.id} style={{ marginBottom: '12px', padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>{template.name}:</div>
                         <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '12px', color: '#374151' }}>
-                          {template}
+                          {template.content}
                         </pre>
                       </div>
                     ))}
+                    {settings.messageTemplates.filter(t => t.enabled).length === 0 && (
+                      <p style={{ color: '#ef4444', fontSize: '14px' }}>Geen templates geselecteerd. Ga naar Instellingen om templates te selecteren.</p>
+                    )}
                   </div>
                 </>
               )}
@@ -383,6 +411,7 @@ export default function Home() {
         .login button { width: 100%; padding: 0.75rem; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
         .login button:hover { background: #1d4ed8; }
       `}</style>
+      </div>
     </div>
   );
 }

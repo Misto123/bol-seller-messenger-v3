@@ -1,231 +1,216 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import Header from '../components/Header';
+import Image from 'next/image';
 
-interface Result {
-  id: number
-  campaign_id: number
-  seller: string
-  keyword: string
-  subject: string
-  message: string
-  name: string
-  email: string
-  phone: string
-  timestamp: string
-  status: 'sent' | 'failed' | 'skipped'
-  reason: string | null
-  campaign_started: string
+interface MessageLog {
+  id: number;
+  shop_name: string;
+  product_title: string;
+  keyword: string;
+  message: string;
+  subject: string;
+  sender_name: string;
+  sender_email: string;
+  sender_phone: string;
+  screenshot_path: string | null;
+  adspower_profile: string;
+  ip_address: string | null;
+  status: 'sent' | 'failed' | 'skipped';
+  error_message: string | null;
+  timestamp: string;
 }
 
-interface Campaign {
-  id: number
-  started_at: string
-  completed_at: string | null
-  total_count: number
-  sent_count: number
-  failed_count: number
-  skipped_count: number
+interface Stats {
+  total: number;
+  sent: number;
+  failed: number;
+  skipped: number;
 }
 
 export default function HistoryPage() {
-  const [results, setResults] = useState<Result[]>([])
-  const [campaigns, setCampaigns] = useState<Campaign[]>([])
-  const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<'results' | 'campaigns'>('results')
+  const [logs, setLogs] = useState<MessageLog[]>([]);
+  const [stats, setStats] = useState<Stats>({ total: 0, sent: 0, failed: 0, skipped: 0 });
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const fetchData = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_WORKFLOW_API_URL || ''
+      const response = await fetch('/api/history?limit=100');
+      const data = await response.json();
       
-      if (!apiUrl) {
-        setResults([])
-        setCampaigns([])
-        return
-      }
-
-      if (view === 'results') {
-        const res = await fetch(`${apiUrl}/api/history?limit=100`)
-        const data = await res.json()
-        setResults(data.results || [])
-      } else {
-        const res = await fetch(`${apiUrl}/api/campaigns?limit=50`)
-        const data = await res.json()
-        setCampaigns(data.campaigns || [])
+      if (data.success) {
+        setLogs(data.logs || []);
+        setStats(data.stats || { total: 0, sent: 0, failed: 0, skipped: 0 });
       }
     } catch (error) {
-      console.error('Failed to fetch history:', error)
+      console.error('Failed to fetch history:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchData()
-  }, [view])
+    fetchData();
+  }, []);
 
   const formatDate = (timestamp: string) => {
-    const date = new Date(timestamp)
+    const date = new Date(timestamp);
     return new Intl.DateTimeFormat('nl-NL', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-    }).format(date)
-  }
+    }).format(date);
+  };
 
   return (
-    <main className="shell" style={{ minHeight: '100vh', padding: '2rem' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-          <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <button type="button" style={{ padding: '0.5rem' }}>← Terug</button>
-          </Link>
-          <div>
-            <h1 style={{ margin: 0 }}>Bericht geschiedenis</h1>
-            <p style={{ margin: '0.25rem 0 0', opacity: 0.7 }}>Bekijk alle verzonden berichten</p>
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Stats Cards */}
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-4">
+          <div className="rounded-lg bg-white p-6 shadow">
+            <div className="text-sm font-medium text-gray-600">Totaal</div>
+            <div className="mt-2 text-3xl font-bold text-gray-900">{stats.total}</div>
           </div>
-          <button 
-            type="button" 
+          <div className="rounded-lg bg-white p-6 shadow">
+            <div className="text-sm font-medium text-gray-600">Verzonden</div>
+            <div className="mt-2 text-3xl font-bold text-green-600">{stats.sent}</div>
+          </div>
+          <div className="rounded-lg bg-white p-6 shadow">
+            <div className="text-sm font-medium text-gray-600">Mislukt</div>
+            <div className="mt-2 text-3xl font-bold text-red-600">{stats.failed}</div>
+          </div>
+          <div className="rounded-lg bg-white p-6 shadow">
+            <div className="text-sm font-medium text-gray-600">Overgeslagen</div>
+            <div className="mt-2 text-3xl font-bold text-gray-600">{stats.skipped}</div>
+          </div>
+        </div>
+
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Bericht Geschiedenis</h1>
+            <p className="mt-1 text-sm text-gray-600">Alle verzonden berichten met details</p>
+          </div>
+          <button
             onClick={fetchData}
-            style={{ marginLeft: 'auto', padding: '0.5rem 1rem' }}
+            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
           >
             ↻ Vernieuwen
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-          <button
-            type="button"
-            onClick={() => setView('results')}
-            style={{
-              padding: '0.5rem 1rem',
-              background: view === 'results' ? 'var(--primary)' : 'transparent',
-              color: view === 'results' ? 'white' : 'inherit',
-              border: '1px solid var(--border)',
-              borderRadius: '0.25rem',
-              cursor: 'pointer',
-            }}
-          >
-            Alle berichten
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('campaigns')}
-            style={{
-              padding: '0.5rem 1rem',
-              background: view === 'campaigns' ? 'var(--primary)' : 'transparent',
-              color: view === 'campaigns' ? 'white' : 'inherit',
-              border: '1px solid var(--border)',
-              borderRadius: '0.25rem',
-              cursor: 'pointer',
-            }}
-          >
-            Campagnes
-          </button>
-        </div>
-
+        {/* Messages List */}
         {loading ? (
-          <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-            <p style={{ opacity: 0.7 }}>Laden...</p>
+          <div className="rounded-lg bg-white p-12 text-center shadow">
+            <p className="text-gray-600">Laden...</p>
           </div>
-        ) : view === 'results' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {results.length === 0 ? (
-              <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-                <p style={{ opacity: 0.7 }}>Geen berichten gevonden</p>
-              </div>
-            ) : (
-              results.map((result) => (
-                <div key={result.id} className="card" style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-                        <strong>{result.seller}</strong>
-                        <span 
-                          className={`badge ${result.status}`}
-                          style={{ fontSize: '0.75rem' }}
-                        >
-                          {result.status}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '0.875rem', opacity: 0.7, marginBottom: '0.5rem' }}>
-                        <span style={{ fontWeight: 500 }}>{result.keyword}</span> · {result.subject}
-                      </div>
-                      {result.message && (
-                        <p style={{ fontSize: '0.875rem', opacity: 0.7, margin: '0.5rem 0', lineClamp: 2 }}>
-                          {result.message}
-                        </p>
-                      )}
-                      {result.reason && (
-                        <p style={{ fontSize: '0.875rem', color: 'var(--danger)', margin: '0.5rem 0 0' }}>
-                          {result.reason}
-                        </p>
-                      )}
-                    </div>
-                    <div style={{ textAlign: 'right', fontSize: '0.875rem', opacity: 0.7 }}>
-                      <div>{formatDate(result.timestamp)}</div>
-                      {result.name && <div style={{ fontSize: '0.75rem' }}>{result.name}</div>}
-                      {result.email && <div style={{ fontSize: '0.75rem' }}>{result.email}</div>}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+        ) : logs.length === 0 ? (
+          <div className="rounded-lg bg-white p-12 text-center shadow">
+            <p className="text-gray-600">Nog geen berichten verzonden</p>
+            <Link href="/" className="mt-4 inline-block text-blue-600 hover:underline">
+              Start je eerste campagne →
+            </Link>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {campaigns.length === 0 ? (
-              <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-                <p style={{ opacity: 0.7 }}>Geen campagnes gevonden</p>
-              </div>
-            ) : (
-              campaigns.map((campaign) => (
-                <div key={campaign.id} className="card" style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-                    <div style={{ flex: 1 }}>
-                      <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>
-                        Campagne #{campaign.id}
-                      </h3>
-                      <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.875rem' }}>
-                        <div>
-                          <span style={{ opacity: 0.7 }}>Totaal: </span>
-                          <span style={{ fontWeight: 500 }}>{campaign.total_count}</span>
-                        </div>
-                        <div>
-                          <span style={{ opacity: 0.7 }}>Verzonden: </span>
-                          <span style={{ fontWeight: 500, color: 'var(--success)' }}>{campaign.sent_count}</span>
-                        </div>
-                        {campaign.failed_count > 0 && (
-                          <div>
-                            <span style={{ opacity: 0.7 }}>Mislukt: </span>
-                            <span style={{ fontWeight: 500, color: 'var(--danger)' }}>{campaign.failed_count}</span>
-                          </div>
-                        )}
-                        {campaign.skipped_count > 0 && (
-                          <div>
-                            <span style={{ opacity: 0.7 }}>Overgeslagen: </span>
-                            <span style={{ fontWeight: 500, color: 'var(--warning)' }}>{campaign.skipped_count}</span>
-                          </div>
-                        )}
+          <div className="space-y-4">
+            {logs.map((log) => (
+              <div
+                key={log.id}
+                className="overflow-hidden rounded-lg bg-white shadow transition-all hover:shadow-md"
+              >
+                <div className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-lg font-semibold text-gray-900">{log.shop_name}</h3>
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${
+                            log.status === 'sent'
+                              ? 'bg-green-100 text-green-800'
+                              : log.status === 'failed'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {log.status === 'sent' ? '✓ Verzonden' : log.status === 'failed' ? '✗ Mislukt' : '⊘ Overgeslagen'}
+                        </span>
                       </div>
+                      
+                      <div className="mt-2 space-y-1 text-sm text-gray-600">
+                        <div><span className="font-medium">Product:</span> {log.product_title}</div>
+                        <div><span className="font-medium">Zoekwoord:</span> {log.keyword}</div>
+                        <div><span className="font-medium">Onderwerp:</span> {log.subject}</div>
+                        <div className="flex gap-4">
+                          <span><span className="font-medium">Profiel:</span> {log.adspower_profile}</span>
+                          {log.ip_address && <span><span className="font-medium">IP:</span> {log.ip_address}</span>}
+                        </div>
+                      </div>
+
+                      {log.error_message && (
+                        <div className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-800">
+                          <span className="font-medium">Fout:</span> {log.error_message}
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                        className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        {expandedId === log.id ? '↑ Minder details' : '↓ Meer details'}
+                      </button>
+
+                      {expandedId === log.id && (
+                        <div className="mt-4 space-y-3 border-t pt-4">
+                          <div>
+                            <div className="text-xs font-medium uppercase text-gray-500">Bericht</div>
+                            <div className="mt-1 whitespace-pre-wrap rounded-md bg-gray-50 p-3 text-sm text-gray-700">
+                              {log.message}
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <div className="text-xs font-medium uppercase text-gray-500">Afzender</div>
+                              <div className="mt-1 text-gray-700">{log.sender_name}</div>
+                              <div className="text-gray-600">{log.sender_email}</div>
+                              {log.sender_phone && <div className="text-gray-600">{log.sender_phone}</div>}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ textAlign: 'right', fontSize: '0.875rem', opacity: 0.7 }}>
-                      <div>Gestart: {formatDate(campaign.started_at)}</div>
-                      {campaign.completed_at && (
-                        <div>Voltooid: {formatDate(campaign.completed_at)}</div>
+
+                    <div className="ml-6 flex flex-col items-end gap-3">
+                      <div className="text-right text-sm text-gray-500">
+                        {formatDate(log.timestamp)}
+                      </div>
+                      
+                      {log.screenshot_path && (
+                        <div className="relative h-32 w-48 overflow-hidden rounded-md border border-gray-200">
+                          <Image
+                            src={log.screenshot_path}
+                            alt="Screenshot"
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
                 </div>
-              ))
-            )}
+              </div>
+            ))}
           </div>
         )}
-      </div>
-    </main>
-  )
+      </main>
+    </div>
+  );
 }

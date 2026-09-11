@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
               phone,
               subject,
               message,
-            });
+            }, keyword);
 
             results.push({
               seller: seller.name,
