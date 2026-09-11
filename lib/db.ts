@@ -1,6 +1,12 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 
+// Check if running on Vercel
+const isVercel = process.env.VERCEL === '1';
+
+// On Vercel, use in-memory storage (session-only)
+// In development, use SQLite
 const dbPath = path.join(process.cwd(), 'data', 'history.db');
 
 export interface MessageLog {
@@ -22,16 +28,23 @@ export interface MessageLog {
 }
 
 let db: Database.Database | null = null;
+let memoryStore: MessageLog[] = []; // In-memory fallback for Vercel
 
 export function getDb() {
+  if (isVercel) {
+    // On Vercel, return null to trigger in-memory mode
+    console.log('[DB] Running on Vercel - using in-memory storage (session only)');
+    return null;
+  }
+  
   if (!db) {
-    // Ensure data directory exists
-    const fs = require('fs');
+    // Local development - use SQLite
     const dataDir = path.join(process.cwd(), 'data');
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
     }
 
+    console.log(`[DB] Using SQLite database at: ${dbPath}`);
     db = new Database(dbPath);
     
     // Create table if not exists
@@ -64,7 +77,17 @@ export function getDb() {
 }
 
 export function insertMessageLog(log: MessageLog): number {
+  if (isVercel) {
+    // In-memory storage on Vercel
+    const id = memoryStore.length + 1;
+    memoryStore.push({ ...log, id });
+    console.log(`[DB] Stored in memory (ID: ${id})`);
+    return id;
+  }
+  
   const db = getDb();
+  if (!db) return 0;
+  
   const stmt = db.prepare(`
     INSERT INTO message_logs (
       shop_name, product_title, keyword, message, subject,
@@ -95,7 +118,17 @@ export function insertMessageLog(log: MessageLog): number {
 }
 
 export function getMessageLogs(limit: number = 100, offset: number = 0): MessageLog[] {
+  if (isVercel) {
+    // Return in-memory data on Vercel (newest first)
+    return memoryStore
+      .slice()
+      .reverse()
+      .slice(offset, offset + limit);
+  }
+  
   const db = getDb();
+  if (!db) return [];
+  
   const stmt = db.prepare(`
     SELECT * FROM message_logs
     ORDER BY timestamp DESC
@@ -106,7 +139,19 @@ export function getMessageLogs(limit: number = 100, offset: number = 0): Message
 }
 
 export function getMessageLogStats() {
+  if (isVercel) {
+    // Calculate stats from in-memory data
+    return {
+      total: memoryStore.length,
+      sent: memoryStore.filter(l => l.status === 'sent').length,
+      failed: memoryStore.filter(l => l.status === 'failed').length,
+      skipped: memoryStore.filter(l => l.status === 'skipped').length,
+    };
+  }
+  
   const db = getDb();
+  if (!db) return { total: 0, sent: 0, failed: 0, skipped: 0 };
+  
   const stmt = db.prepare(`
     SELECT 
       COUNT(*) as total,

@@ -35,6 +35,7 @@ export default function HistoryPage() {
   const [stats, setStats] = useState<Stats>({ total: 0, sent: 0, failed: 0, skipped: 0 });
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const isVercel = typeof window !== 'undefined' && window.location.hostname.includes('vercel.app');
 
   const fetchData = async () => {
     setLoading(true);
@@ -73,6 +74,22 @@ export default function HistoryPage() {
       <Header />
       
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Vercel Warning */}
+        {isVercel && (
+          <div className="mb-6 rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div className="flex-1">
+                <h3 className="font-semibold text-yellow-900">Session-Only Storage</h3>
+                <p className="mt-1 text-sm text-yellow-800">
+                  On Vercel deployment, message history is stored in memory and only visible during the active campaign session. 
+                  Data is lost when the server restarts. For persistent storage, run locally or connect a database (see DATABASE_ISSUE.md).
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-4">
           <div className="rounded-lg bg-white p-6 shadow">
