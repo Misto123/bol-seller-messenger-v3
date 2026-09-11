@@ -167,7 +167,12 @@ export class BolAutomation {
     try {
       // Take screenshot
       if (this.currentPage) {
-        const screenshotsDir = path.join(process.cwd(), 'public', 'screenshots');
+        // Use /tmp on Vercel, public/screenshots locally
+        const isVercel = process.env.VERCEL === '1';
+        const screenshotsDir = isVercel 
+          ? '/tmp/screenshots'
+          : path.join(process.cwd(), 'public', 'screenshots');
+        
         if (!fs.existsSync(screenshotsDir)) {
           fs.mkdirSync(screenshotsDir, { recursive: true });
         }
@@ -181,7 +186,8 @@ export class BolAutomation {
           type: 'png'
         });
         
-        screenshotPath = `/screenshots/${filename}`;
+        // Store relative path (note: on Vercel, screenshots in /tmp won't be accessible via URL)
+        screenshotPath = isVercel ? `/tmp/screenshots/${filename}` : `/screenshots/${filename}`;
         console.log(`[BOL] Screenshot saved: ${screenshotPath}`);
       }
       
