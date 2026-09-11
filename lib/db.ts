@@ -1,9 +1,14 @@
-import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 
 // Check if running on Vercel
 const isVercel = process.env.VERCEL === '1';
+
+// Only import better-sqlite3 in local development
+let Database: any = null;
+if (!isVercel) {
+  Database = require('better-sqlite3');
+}
 
 // On Vercel, use in-memory storage (session-only)
 // In development, use SQLite
@@ -27,7 +32,7 @@ export interface MessageLog {
   timestamp: string;
 }
 
-let db: Database.Database | null = null;
+let db: any = null;
 let memoryStore: MessageLog[] = []; // In-memory fallback for Vercel
 
 export function getDb() {
@@ -37,7 +42,7 @@ export function getDb() {
     return null;
   }
   
-  if (!db) {
+  if (!db && Database) {
     // Local development - use SQLite
     const dataDir = path.join(process.cwd(), 'data');
     if (!fs.existsSync(dataDir)) {
