@@ -164,8 +164,8 @@ export class BolAutomation {
     const timestamp = new Date().toISOString();
     let screenshotPath: string | null = null;
     
+    // Try to take screenshot (don't fail the whole operation if screenshot fails)
     try {
-      // Take screenshot
       if (this.currentPage) {
         // Use /tmp on Vercel, public/screenshots locally
         const isVercel = process.env.VERCEL === '1';
@@ -173,25 +173,32 @@ export class BolAutomation {
           ? '/tmp/screenshots'
           : path.join(process.cwd(), 'public', 'screenshots');
         
-        if (!fs.existsSync(screenshotsDir)) {
-          fs.mkdirSync(screenshotsDir, { recursive: true });
+        try {
+          if (!fs.existsSync(screenshotsDir)) {
+            fs.mkdirSync(screenshotsDir, { recursive: true });
+          }
+          
+          const filename = `${Date.now()}-${seller.name.replace(/[^a-z0-9]/gi, '_')}.png`;
+          const fullPath = path.join(screenshotsDir, filename);
+          
+          await this.currentPage.screenshot({ 
+            path: fullPath,
+            fullPage: false,
+            type: 'png'
+          });
+          
+          screenshotPath = isVercel ? `/tmp/screenshots/${filename}` : `/screenshots/${filename}`;
+          console.log(`[BOL] Screenshot saved: ${screenshotPath}`);
+        } catch (screenshotError: any) {
+          console.warn(`[BOL] Screenshot failed (non-critical): ${screenshotError.message}`);
+          // Continue without screenshot - don't break the operation
         }
-        
-        const filename = `${Date.now()}-${seller.name.replace(/[^a-z0-9]/gi, '_')}.png`;
-        const fullPath = path.join(screenshotsDir, filename);
-        
-        await this.currentPage.screenshot({ 
-          path: fullPath,
-          fullPage: false,
-          type: 'png'
-        });
-        
-        // Store relative path (note: on Vercel, screenshots in /tmp won't be accessible via URL)
-        screenshotPath = isVercel ? `/tmp/screenshots/${filename}` : `/screenshots/${filename}`;
-        console.log(`[BOL] Screenshot saved: ${screenshotPath}`);
       }
-      
-      // Log to database
+    } catch (error: any) {
+      console.warn(`[BOL] Screenshot setup failed: ${error.message}`);
+    }
+    
+    try {
       const logEntry: MessageLog = {
         shop_name: seller.name,
         product_title: seller.productTitle,
