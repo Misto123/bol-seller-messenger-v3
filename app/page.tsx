@@ -185,9 +185,12 @@ export default function Home() {
       
       <div className="container">
       <div className="header">
-        <div>
-          <h1>BOL Seller Messenger</h1>
-          <p className="subtitle">Automatisch contact maken met verkopers op BOL.nl</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <img src="/logo.svg" alt="BOL Messenger" style={{ width: '48px', height: '48px' }} />
+          <div>
+            <h1>BOL Seller Messenger</h1>
+            <p className="subtitle">Automatisch contact maken met verkopers op BOL.nl</p>
+          </div>
         </div>
         <Link href="/settings" className="settings-button">
           ⚙️ Instellingen
@@ -207,13 +210,25 @@ export default function Home() {
       )}
 
         {settings && (
-          <div className="info-box">
-            <h3>Huidige Instellingen:</h3>
-            <div className="info-grid">
-              <p>• {settings.keywords.length} zoekwoorden geconfigureerd</p>
-              <p>• {settings.messagesPerKeyword} berichten per zoekwoord</p>
-              <p>• {settings.cooldownMinutes} minuten cooldown</p>
-              <p>• {settings.messageTemplates.filter(t => t.enabled).length} van {settings.messageTemplates.length} templates actief</p>
+          <div className="info-box" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none' }}>
+            <h3 style={{ color: 'white', marginBottom: '16px' }}>📊 Campagne Overzicht</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', backdropFilter: 'blur(10px)' }}>
+                <div style={{ fontSize: '14px', opacity: 0.9 }}>Zoekwoorden</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{settings.keywords.length}</div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', backdropFilter: 'blur(10px)' }}>
+                <div style={{ fontSize: '14px', opacity: 0.9 }}>Per Keyword</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{settings.messagesPerKeyword}</div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', backdropFilter: 'blur(10px)' }}>
+                <div style={{ fontSize: '14px', opacity: 0.9 }}>Cooldown</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{settings.cooldownMinutes}m</div>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', backdropFilter: 'blur(10px)' }}>
+                <div style={{ fontSize: '14px', opacity: 0.9 }}>Actieve Templates</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{settings.messageTemplates.filter(t => t.enabled).length}/{settings.messageTemplates.length}</div>
+              </div>
             </div>
           </div>
         )}

@@ -164,38 +164,34 @@ export class BolAutomation {
     const timestamp = new Date().toISOString();
     let screenshotPath: string | null = null;
     
-    // Try to take screenshot (don't fail the whole operation if screenshot fails)
-    try {
-      if (this.currentPage) {
-        // Use /tmp on Vercel, public/screenshots locally
-        const isVercel = process.env.VERCEL === '1';
-        const screenshotsDir = isVercel 
-          ? '/tmp/screenshots'
-          : path.join(process.cwd(), 'public', 'screenshots');
+    // Skip screenshots entirely on Vercel to avoid any filesystem issues
+    const isVercel = process.env.VERCEL === '1';
+    
+    if (!isVercel && this.currentPage) {
+      // Only take screenshots in local development
+      try {
+        const screenshotsDir = path.join(process.cwd(), 'public', 'screenshots');
         
-        try {
-          if (!fs.existsSync(screenshotsDir)) {
-            fs.mkdirSync(screenshotsDir, { recursive: true });
-          }
-          
-          const filename = `${Date.now()}-${seller.name.replace(/[^a-z0-9]/gi, '_')}.png`;
-          const fullPath = path.join(screenshotsDir, filename);
-          
-          await this.currentPage.screenshot({ 
-            path: fullPath,
-            fullPage: false,
-            type: 'png'
-          });
-          
-          screenshotPath = isVercel ? `/tmp/screenshots/${filename}` : `/screenshots/${filename}`;
-          console.log(`[BOL] Screenshot saved: ${screenshotPath}`);
-        } catch (screenshotError: any) {
-          console.warn(`[BOL] Screenshot failed (non-critical): ${screenshotError.message}`);
-          // Continue without screenshot - don't break the operation
+        if (!fs.existsSync(screenshotsDir)) {
+          fs.mkdirSync(screenshotsDir, { recursive: true });
         }
+        
+        const filename = `${Date.now()}-${seller.name.replace(/[^a-z0-9]/gi, '_')}.png`;
+        const fullPath = path.join(screenshotsDir, filename);
+        
+        await this.currentPage.screenshot({ 
+          path: fullPath,
+          fullPage: false,
+          type: 'png'
+        });
+        
+        screenshotPath = `/screenshots/${filename}`;
+        console.log(`[BOL] Screenshot saved: ${screenshotPath}`);
+      } catch (error: any) {
+        console.warn(`[BOL] Screenshot failed: ${error.message}`);
       }
-    } catch (error: any) {
-      console.warn(`[BOL] Screenshot setup failed: ${error.message}`);
+    } else if (isVercel) {
+      console.log('[BOL] Skipping screenshot on Vercel (filesystem limitation)');
     }
     
     try {
@@ -216,7 +212,7 @@ export class BolAutomation {
         timestamp: timestamp,
       };
       
-      insertMessageLog(logEntry);
+      await insertMessageLog(logEntry);
       console.log(`[BOL] Message logged to database`);
       
       return {
@@ -246,7 +242,7 @@ export class BolAutomation {
         timestamp: timestamp,
       };
       
-      insertMessageLog(logEntry);
+      await insertMessageLog(logEntry);
       
       throw error;
     }

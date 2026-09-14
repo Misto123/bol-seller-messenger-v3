@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Seller Messenger",
-  description: "Bol seller outreach console",
+  title: "BOL Seller Messenger - Automated Outreach",
+  description: "Automated messaging tool for contacting BOL.com sellers",
   icons: {
     icon: '/favicon.svg',
+    apple: '/logo.svg',
   },
 };
 
