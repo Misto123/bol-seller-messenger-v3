@@ -190,6 +190,7 @@ export default function Home() {
           <div>
             <h1>BOL Seller Messenger</h1>
             <p className="subtitle">Automatisch contact maken met verkopers op BOL.nl</p>
+            <p style={{ fontSize: '11px', color: '#64736c', marginTop: '4px' }}>v2.1.0 • Gedeployed: 14 Sep 2026</p>
           </div>
         </div>
         <Link href="/settings" className="settings-button">

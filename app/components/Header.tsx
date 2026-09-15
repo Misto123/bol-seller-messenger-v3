@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const VERSION = 'v2.1.0'; // Update this with each deployment
+const VERSION = 'v2.1.0';
+const DEPLOYED = '14 Sep 2026'; // Update with each deployment
 
 export default function Header() {
   const pathname = usePathname();
@@ -17,7 +18,7 @@ export default function Header() {
               <img src="/logo.svg" alt="BOL Messenger" className="h-8 w-8" />
               <div className="flex flex-col">
                 <span className="text-xl font-bold text-gray-900">BOL Seller Messenger</span>
-                <span className="text-xs text-gray-500">{VERSION}</span>
+                <span className="text-xs text-gray-500">{VERSION} • {DEPLOYED}</span>
               </div>
             </Link>
             <nav className="hidden md:flex items-center gap-6">
