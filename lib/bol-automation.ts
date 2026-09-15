@@ -16,6 +16,7 @@ export interface ContactResult {
   success: boolean;
   timestamp: string;
   screenshotPath?: string;
+  error?: string;
 }
 
 export class BolAutomation {

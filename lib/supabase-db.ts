@@ -58,7 +58,7 @@ export async function insertMessageLog(log: MessageLog): Promise<number> {
         status: log.status,
         error_message: log.error_message || null,
         timestamp: log.timestamp,
-      })
+      } as any)
       .select('id')
       .single();
 
