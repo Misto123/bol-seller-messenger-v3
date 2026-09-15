@@ -146,3 +146,35 @@ export async function getMessageLogStats() {
     return { total: 0, sent: 0, failed: 0, skipped: 0 };
   }
 }
+
+export async function wasSellerContactedRecently(shopName: string, monthsAgo: number = 6): Promise<boolean> {
+  const client = getSupabase();
+  
+  if (!client) {
+    console.warn('[DB] Supabase not configured - cannot check duplicates');
+    return false;
+  }
+
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setMonth(cutoffDate.getMonth() - monthsAgo);
+    
+    const { data, error } = await client
+      .from('message_logs')
+      .select('id')
+      .eq('shop_name', shopName)
+      .eq('status', 'sent')
+      .gte('timestamp', cutoffDate.toISOString())
+      .limit(1);
+
+    if (error) {
+      console.error('[DB] Duplicate check error:', error);
+      return false;
+    }
+
+    return (data && data.length > 0);
+  } catch (error: any) {
+    console.error('[DB] Duplicate check exception:', error.message);
+    return false;
+  }
+}

@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+const VERSION = 'v2.1.0'; // Update this with each deployment
+
 export default function Header() {
   const pathname = usePathname();
   
@@ -11,8 +13,12 @@ export default function Header() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-8">
-            <Link href="/" className="text-xl font-bold text-gray-900">
-              BOL Seller Messenger
+            <Link href="/" className="flex items-center gap-3">
+              <img src="/logo.svg" alt="BOL Messenger" className="h-8 w-8" />
+              <div className="flex flex-col">
+                <span className="text-xl font-bold text-gray-900">BOL Seller Messenger</span>
+                <span className="text-xs text-gray-500">{VERSION}</span>
+              </div>
             </Link>
             <nav className="hidden md:flex items-center gap-6">
               <Link

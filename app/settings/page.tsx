@@ -200,7 +200,8 @@ export default function SettingsPage() {
               onChange={(e) => setNewKeyword(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && addKeyword()}
               placeholder="bijv. powerbank, usb kabel..."
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-base focus:border-transparent focus:ring-2 focus:ring-blue-500"
+              style={{ minHeight: '44px' }}
             />
             <button
               onClick={addKeyword}
@@ -264,7 +265,8 @@ export default function SettingsPage() {
                 onChange={(e) =>
                   setSettings({ ...settings, cooldownMinutes: parseInt(e.target.value) || 1 })
                 }
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base focus:ring-2 focus:ring-blue-500"
+                style={{ minHeight: '44px' }}
               />
               <p className="mt-1 text-xs text-gray-500">
                 Wachttijd tussen het verwerken van verschillende zoekwoorden
@@ -286,7 +288,8 @@ export default function SettingsPage() {
                     messagesPerKeyword: parseInt(e.target.value) || 1,
                   })
                 }
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base focus:ring-2 focus:ring-blue-500"
+                style={{ minHeight: '44px' }}
               />
               <p className="mt-1 text-xs text-gray-500">
                 Maximaal aantal verkopers om te contacteren per zoekwoord

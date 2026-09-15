@@ -1,6 +1,6 @@
 // BOL.nl automation using Cloud Browser API
 import { CloudBrowserClient } from './cloud-browser';
-import { insertMessageLog, MessageLog } from './supabase-db';
+import { insertMessageLog, MessageLog, wasSellerContactedRecently } from './supabase-db';
 import path from 'path';
 import fs from 'fs';
 
@@ -159,7 +159,43 @@ export class BolAutomation {
   }
 
   async contactSeller(seller: Seller, messageData: any, keyword: string): Promise<ContactResult> {
-    console.log(`[BOL] Would contact: ${seller.name}`);
+    console.log(`[BOL] Checking seller: ${seller.name}`);
+    
+    // Check if seller was contacted in the last 6 months
+    const alreadyContacted = await wasSellerContactedRecently(seller.name, 6);
+    
+    if (alreadyContacted) {
+      console.log(`[BOL] Skipping ${seller.name} - contacted within last 6 months`);
+      
+      const timestamp = new Date().toISOString();
+      const logEntry: MessageLog = {
+        shop_name: seller.name,
+        product_title: seller.productTitle,
+        keyword: keyword,
+        message: messageData.message,
+        subject: messageData.subject,
+        sender_name: messageData.name,
+        sender_email: messageData.email,
+        sender_phone: messageData.phone || '',
+        screenshot_path: null,
+        adspower_profile: this.profileId,
+        ip_address: this.ipAddress,
+        status: 'skipped',
+        error_message: 'Already contacted within 6 months',
+        timestamp: timestamp,
+      };
+      
+      await insertMessageLog(logEntry);
+      
+      return {
+        seller: seller.name,
+        success: false,
+        timestamp,
+        error: 'Already contacted within 6 months',
+      };
+    }
+    
+    console.log(`[BOL] Contacting: ${seller.name}`);
     
     const timestamp = new Date().toISOString();
     let screenshotPath: string | null = null;
