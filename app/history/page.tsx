@@ -150,7 +150,14 @@ export default function HistoryPage() {
                         <div><span className="font-medium">Onderwerp:</span> {log.subject}</div>
                         <div className="flex gap-4">
                           <span><span className="font-medium">Profiel:</span> {log.adspower_profile}</span>
-                          {log.ip_address && <span><span className="font-medium">IP:</span> {log.ip_address}</span>}
+                          <span>
+                            <span className="font-medium">IP:</span>{' '}
+                            {log.ip_address ? (
+                              <span className="text-blue-600">{log.ip_address}</span>
+                            ) : (
+                              <span className="text-gray-400">Geen IP</span>
+                            )}
+                          </span>
                         </div>
                       </div>
 
@@ -182,6 +189,19 @@ export default function HistoryPage() {
                               <div className="mt-1 text-gray-700">{log.sender_name}</div>
                               <div className="text-gray-600">{log.sender_email}</div>
                               {log.sender_phone && <div className="text-gray-600">{log.sender_phone}</div>}
+                            </div>
+                            <div>
+                              <div className="text-xs font-medium uppercase text-gray-500">Verbinding</div>
+                              <div className="mt-1">
+                                <div className="text-gray-700">Profiel: {log.adspower_profile}</div>
+                                <div className="text-gray-700">
+                                  IP: {log.ip_address ? (
+                                    <span className="font-mono text-blue-600">{log.ip_address}</span>
+                                  ) : (
+                                    <span className="text-gray-400">Geen IP gedetecteerd</span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
