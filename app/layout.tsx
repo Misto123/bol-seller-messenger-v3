@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AuthWrapper from "./components/AuthWrapper";
 
 export const metadata: Metadata = {
   title: "BOL Seller Messenger - Automated Outreach",
@@ -20,7 +21,11 @@ export default function RootLayout({
       lang="en"
       className="h-full antialiased"
     >
-      <body>{children}</body>
+      <body>
+        <AuthWrapper>
+          {children}
+        </AuthWrapper>
+      </body>
     </html>
   );
 }

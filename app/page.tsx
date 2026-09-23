@@ -69,9 +69,7 @@ function Pool({
 }
 
 export default function Home() {
-  const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
   const [runError, setRunError] = useState("");
   const [settings, setSettings] = useState<CampaignSettings | null>(null);
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
@@ -99,16 +97,6 @@ export default function Home() {
       setPhone(parsed.senderPhone || "0624530190");
     }
   }, []);
-
-  function unlock() {
-    if (!password.trim()) {
-      setLoginError("Enter the workspace password");
-      return;
-    }
-    setLoginError("");
-    setAuthenticated(true);
-    setPassword("");
-  }
 
   async function startOutreach() {
     if (!settings) {
@@ -162,23 +150,6 @@ export default function Home() {
     }
   }
 
-  if (!authenticated) {
-    return (
-      <div className="login">
-        <h1>BOL Seller Messenger</h1>
-        <input
-          type="password"
-          placeholder="Workspace password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && unlock()}
-        />
-        <button onClick={unlock}>Unlock</button>
-        {loginError && <div className="error">{loginError}</div>}
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -190,7 +161,7 @@ export default function Home() {
           <div>
             <h1>BOL Seller Messenger</h1>
             <p className="subtitle">Automatisch contact maken met verkopers op BOL.nl</p>
-            <p style={{ fontSize: '11px', color: '#64736c', marginTop: '4px' }}>v2.1.0 • Gedeployed: 14 Sep 2026</p>
+            <p style={{ fontSize: '11px', color: '#64736c', marginTop: '4px' }}>v2.2.0 • Gedeployed: 15 Sep 2026</p>
           </div>
         </div>
         <Link href="/settings" className="settings-button">
