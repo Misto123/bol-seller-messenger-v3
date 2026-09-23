@@ -15,9 +15,9 @@ interface CampaignSettings {
   cooldownMinutes: number;
   messagesPerKeyword: number;
   messageTemplates: MessageTemplate[];
-  senderName: string;
-  senderEmail: string;
-  senderPhone: string;
+  senderNames: string[];
+  senderEmails: string[];
+  senderPhones: string[];
   subject: string;
   sponsoredOnly: boolean;
 }
@@ -40,9 +40,32 @@ const DEFAULT_SETTINGS: CampaignSettings = {
       enabled: true,
     },
   ],
-  senderName: 'Jan de Vries',
-  senderEmail: 'jan@vries.nl',
-  senderPhone: '0612345678',
+  senderNames: [
+    'Clara Fischer',
+    'Kaja Blum',
+    'Simon de Vries',
+    'Emma van der Berg',
+    'Lars Janssen'
+  ],
+  senderEmails: [
+    'clara@marktplatzranking.de',
+    'clara.fischer@marktplatzranking.de',
+    'kaja@erfolgimmarkt.de',
+    'kaja.blum@marketinsiders.org',
+    'kaja.blum@erfolgimmarkt.de',
+    'kaja@marketinsiders.org',
+    'simon@marketinsiders.org',
+    'contact@marketrankconsult.com',
+    'marketplace@marketrankconsult.com',
+    'sales@marketrankconsult.com'
+  ],
+  senderPhones: [
+    '0612345678',
+    '0687654321',
+    '0698765432',
+    '0623456789',
+    '0634567890'
+  ],
   subject: 'Vraag over product',
   sponsoredOnly: false,
 };
@@ -68,6 +91,7 @@ export default function SettingsPage() {
     const stored = localStorage.getItem('campaignSettings');
     if (stored) {
       const parsed = JSON.parse(stored);
+      
       // Migrate old format to new format if needed
       if (parsed.messageTemplates && typeof parsed.messageTemplates[0] === 'string') {
         parsed.messageTemplates = parsed.messageTemplates.map((content: string, index: number) => ({
@@ -77,6 +101,21 @@ export default function SettingsPage() {
           enabled: true,
         }));
       }
+      
+      // Migrate old single sender fields to arrays
+      if (parsed.senderName && !parsed.senderNames) {
+        parsed.senderNames = [parsed.senderName];
+        delete parsed.senderName;
+      }
+      if (parsed.senderEmail && !parsed.senderEmails) {
+        parsed.senderEmails = [parsed.senderEmail];
+        delete parsed.senderEmail;
+      }
+      if (parsed.senderPhone && !parsed.senderPhones) {
+        parsed.senderPhones = [parsed.senderPhone];
+        delete parsed.senderPhone;
+      }
+      
       setSettings(parsed);
     }
   }, []);
@@ -301,46 +340,153 @@ export default function SettingsPage() {
         {/* Sender Information */}
         <div className="mb-6 rounded-lg bg-white p-6 shadow">
           <h2 className="mb-4 text-xl font-semibold text-gray-900">Afzender Informatie</h2>
+          <p className="mb-4 text-sm text-gray-600">
+            Voeg meerdere namen, emails en telefoonnummers toe. Bij elk bericht wordt willekeurig één combinatie gekozen.
+          </p>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Names */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Naam</label>
-              <input
-                type="text"
-                value={settings.senderName}
-                onChange={(e) => setSettings({ ...settings, senderName: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500"
-              />
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Namen ({settings.senderNames.length})
+              </label>
+              <div className="space-y-2">
+                {settings.senderNames.map((name, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => {
+                        const newNames = [...settings.senderNames];
+                        newNames[index] = e.target.value;
+                        setSettings({ ...settings, senderNames: newNames });
+                      }}
+                      className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-base focus:ring-2 focus:ring-blue-500"
+                      placeholder="Bijv. Clara Fischer"
+                    />
+                    <button
+                      onClick={() => {
+                        const newNames = settings.senderNames.filter((_, i) => i !== index);
+                        setSettings({ ...settings, senderNames: newNames });
+                      }}
+                      className="rounded-lg bg-red-100 px-4 py-2 text-red-700 hover:bg-red-200"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => setSettings({ 
+                    ...settings, 
+                    senderNames: [...settings.senderNames, ''] 
+                  })}
+                  className="w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50"
+                >
+                  + Naam toevoegen
+                </button>
+              </div>
             </div>
 
+            {/* Emails */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Email</label>
-              <input
-                type="email"
-                value={settings.senderEmail}
-                onChange={(e) => setSettings({ ...settings, senderEmail: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500"
-              />
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Email adressen ({settings.senderEmails.length})
+              </label>
+              <div className="space-y-2">
+                {settings.senderEmails.map((email, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        const newEmails = [...settings.senderEmails];
+                        newEmails[index] = e.target.value;
+                        setSettings({ ...settings, senderEmails: newEmails });
+                      }}
+                      className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-base focus:ring-2 focus:ring-blue-500"
+                      placeholder="Bijv. clara@marktplatzranking.de"
+                    />
+                    <button
+                      onClick={() => {
+                        const newEmails = settings.senderEmails.filter((_, i) => i !== index);
+                        setSettings({ ...settings, senderEmails: newEmails });
+                      }}
+                      className="rounded-lg bg-red-100 px-4 py-2 text-red-700 hover:bg-red-200"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => setSettings({ 
+                    ...settings, 
+                    senderEmails: [...settings.senderEmails, ''] 
+                  })}
+                  className="w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50"
+                >
+                  + Email toevoegen
+                </button>
+              </div>
             </div>
 
+            {/* Phone Numbers */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Telefoonnummer</label>
-              <input
-                type="tel"
-                value={settings.senderPhone}
-                onChange={(e) => setSettings({ ...settings, senderPhone: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500"
-              />
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Telefoonnummers ({settings.senderPhones.length}) - Optioneel
+              </label>
+              <p className="mb-2 text-xs text-gray-500">
+                Indien leeg, wordt automatisch een random 06-nummer gegenereerd (06XXXXXXXX)
+              </p>
+              <div className="space-y-2">
+                {settings.senderPhones.map((phone, index) => (
+                  <div key={index} className="flex gap-2">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => {
+                        const newPhones = [...settings.senderPhones];
+                        newPhones[index] = e.target.value;
+                        setSettings({ ...settings, senderPhones: newPhones });
+                      }}
+                      className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-base focus:ring-2 focus:ring-blue-500"
+                      placeholder="Bijv. 0612345678"
+                    />
+                    <button
+                      onClick={() => {
+                        const newPhones = settings.senderPhones.filter((_, i) => i !== index);
+                        setSettings({ ...settings, senderPhones: newPhones });
+                      }}
+                      className="rounded-lg bg-red-100 px-4 py-2 text-red-700 hover:bg-red-200"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => setSettings({ 
+                    ...settings, 
+                    senderPhones: [...settings.senderPhones, ''] 
+                  })}
+                  className="w-full rounded-lg border-2 border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50"
+                >
+                  + Telefoonnummer toevoegen
+                </button>
+              </div>
             </div>
 
+            {/* Subject */}
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">Onderwerp</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Onderwerp (standaard)</label>
               <input
                 type="text"
                 value={settings.subject}
                 onChange={(e) => setSettings({ ...settings, subject: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base focus:ring-2 focus:ring-blue-500"
+                placeholder="Bijv. Vraag over product"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Dit onderwerp kan per campagne worden overschreven op de Dashboard pagina
+              </p>
             </div>
           </div>
         </div>

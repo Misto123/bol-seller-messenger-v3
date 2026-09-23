@@ -25,9 +25,9 @@ interface CampaignSettings {
   cooldownMinutes: number;
   messagesPerKeyword: number;
   messageTemplates: MessageTemplate[];
-  senderName: string;
-  senderEmail: string;
-  senderPhone: string;
+  senderNames: string[];
+  senderEmails: string[];
+  senderPhones: string[];
   subject: string;
   sponsoredOnly: boolean;
 }
@@ -93,8 +93,22 @@ export default function Home() {
           enabled: true,
         }));
       }
+      // Migrate old single sender fields to arrays
+      if (parsed.senderName && !parsed.senderNames) {
+        parsed.senderNames = [parsed.senderName];
+        delete parsed.senderName;
+      }
+      if (parsed.senderEmail && !parsed.senderEmails) {
+        parsed.senderEmails = [parsed.senderEmail];
+        delete parsed.senderEmail;
+      }
+      if (parsed.senderPhone && !parsed.senderPhones) {
+        parsed.senderPhones = [parsed.senderPhone];
+        delete parsed.senderPhone;
+      }
       setSettings(parsed);
-      setPhone(parsed.senderPhone || "0624530190");
+      // Set first phone as default, or empty for random generation
+      setPhone(parsed.senderPhones?.[0] || "");
     }
   }, []);
 
@@ -131,8 +145,9 @@ export default function Home() {
           keywords: selectedKeywords,
           count: settings.messagesPerKeyword,
           messages: messagesToSend,
-          names: [settings.senderName],
-          emails: [settings.senderEmail],
+          names: settings.senderNames,
+          emails: settings.senderEmails,
+          phones: settings.senderPhones,
           subjects: [settings.subject],
           phone: phone,
           cooldownMinutes: settings.cooldownMinutes,
@@ -161,7 +176,7 @@ export default function Home() {
           <div>
             <h1>BOL Seller Messenger</h1>
             <p className="subtitle">Automatisch contact maken met verkopers op BOL.nl</p>
-            <p style={{ fontSize: '11px', color: '#64736c', marginTop: '4px' }}>v2.2.0 • Gedeployed: 15 Sep 2026</p>
+            <p style={{ fontSize: '11px', color: '#64736c', marginTop: '4px' }}>v2.3.0 • Gedeployed: 16 Sep 2026</p>
           </div>
         </div>
         <Link href="/settings" className="settings-button">

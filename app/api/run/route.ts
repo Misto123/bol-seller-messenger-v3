@@ -13,11 +13,21 @@ export async function POST(request: NextRequest) {
       messages = [],
       names = [],
       emails = [],
+      phones = [],
       subjects = [],
       phone = '',
       count = 1,
       filterSponsored = false 
     } = body;
+
+    // Helper function to pick random item from array
+    const pickRandom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+    
+    // Helper function to generate random Dutch phone number
+    const generateRandomPhone = () => {
+      const randomDigits = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+      return `06${randomDigits}`;
+    };
 
     // Validate required environment variables
     const cloudBrowserUrl = process.env.CLOUD_BROWSER_URL;
@@ -54,27 +64,49 @@ export async function POST(request: NextRequest) {
           
           console.log(`[API] Found ${sellers.length} sellers for "${keyword}"`);
 
-          // Process each seller
+          let sentCount = 0;
+          const targetCount = count || 3;
+
+          // Process each seller until we reach target count of SENT messages
           for (const seller of sellers) {
-            const template = messages[0] || 'Hello {{sellerName}}, interested in {{productTitle}}';
-            const senderName = names[0] || '';
-            const senderEmail = emails[0] || '';
-            const subject = subjects[0] || 'Product inquiry';
+            // Stop if we've sent enough messages (not counting skipped)
+            if (sentCount >= targetCount) {
+              console.log(`[API] Reached target of ${targetCount} sent messages for "${keyword}"`);
+              break;
+            }
+
+            // Randomly select sender details for this message
+            const template = pickRandom(messages) || 'Hello {{sellerName}}, interested in {{productTitle}}';
+            const senderName = pickRandom(names) || 'Unknown';
+            const senderEmail = pickRandom(emails) || 'noreply@example.com';
+            const senderPhone = phones.length > 0 ? pickRandom(phones) : generateRandomPhone();
+            const subject = pickRandom(subjects) || 'Product inquiry';
+            
+            console.log(`[API] Random selection - Name: ${senderName}, Email: ${senderEmail}, Phone: ${senderPhone}`);
             
             const message = template
               .replace(/\{\{sellerName\}\}/g, seller.name)
               .replace(/\{\{productTitle\}\}/g, seller.productTitle)
+              .replace(/\{\{keyword\}\}/g, keyword)
               .replace(/\{\{senderName\}\}/g, senderName)
               .replace(/\{\{senderEmail\}\}/g, senderEmail)
-              .replace(/\{\{senderPhone\}\}/g, phone);
+              .replace(/\{\{senderPhone\}\}/g, senderPhone);
 
             const result = await automation.contactSeller(seller, {
               name: senderName,
               email: senderEmail,
-              phone,
+              phone: senderPhone,
               subject,
               message,
             }, keyword);
+
+            // Determine status from result
+            const status = result.success ? 'sent' : result.error ? 'skipped' : 'failed';
+            
+            // Only increment counter for successfully sent messages
+            if (status === 'sent') {
+              sentCount++;
+            }
 
             results.push({
               seller: seller.name,
@@ -82,8 +114,11 @@ export async function POST(request: NextRequest) {
               subject,
               message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
               timestamp: result.timestamp,
-              status: 'sent',
+              status,
+              reason: result.error || undefined,
             });
+
+            console.log(`[API] ${seller.name}: ${status} (${sentCount}/${targetCount} sent)`);
           }
         } catch (error: any) {
           console.error(`[API] Error processing keyword "${keyword}":`, error);
