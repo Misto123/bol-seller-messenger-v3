@@ -308,7 +308,8 @@ export default function SettingsPage() {
                 <span>{keyword}</span>
                 <button
                   onClick={() => removeKeyword(keyword)}
-                  className="text-blue-600 hover:text-blue-800"
+                  className="rounded-full hover:bg-red-100 text-red-600 hover:text-red-800 w-5 h-5 flex items-center justify-center font-bold text-lg"
+                  title="Verwijderen"
                 >
                   ×
                 </button>
@@ -435,6 +436,7 @@ export default function SettingsPage() {
                       }}
                       className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-base focus:ring-2 focus:ring-blue-500"
                       placeholder="Bijv. Clara Fischer"
+                      style={{ minHeight: '44px' }}
                     />
                     <button
                       onClick={() => {
@@ -477,6 +479,7 @@ export default function SettingsPage() {
                       }}
                       className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-base focus:ring-2 focus:ring-blue-500"
                       placeholder="Bijv. clara@marktplatzranking.de"
+                      style={{ minHeight: '44px' }}
                     />
                     <button
                       onClick={() => {
@@ -522,6 +525,7 @@ export default function SettingsPage() {
                       }}
                       className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-base focus:ring-2 focus:ring-blue-500"
                       placeholder="Bijv. 0612345678"
+                      style={{ minHeight: '44px' }}
                     />
                     <button
                       onClick={() => {
@@ -555,6 +559,7 @@ export default function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, subject: e.target.value })}
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base focus:ring-2 focus:ring-blue-500"
                 placeholder="Bijv. Vraag over product"
+                style={{ minHeight: '44px' }}
               />
               <p className="mt-1 text-xs text-gray-500">
                 Dit onderwerp kan per campagne worden overschreven op de Dashboard pagina
@@ -800,7 +805,8 @@ export default function SettingsPage() {
                       onChange={(e) => setEditContent(e.target.value)}
                       placeholder="Bericht inhoud..."
                       rows={8}
-                      className="w-full rounded border px-3 py-2 font-mono text-sm"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 font-mono text-sm focus:ring-2 focus:ring-green-500"
+                      style={{ minHeight: '120px' }}
                     />
 
                     <div className="flex gap-2">
