@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const VERSION = 'v2.4.1';
+const VERSION = 'v2.5.0';
 const DEPLOYED = '29 Sep 2026'; // Update with each deployment
 
 export default function Header() {
