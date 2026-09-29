@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.bol-seller-messenger.campaign</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/northsea/ClaudeProjects/bol-seller-messenger-v3/scripts/run-campaign.sh</string>
+    </array>
+    
+    <key>StartCalendarInterval</key>
+    <dict>
+        <!-- Run daily at 9:00 AM -->
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    
+    <key>StandardOutPath</key>
+    <string>/Users/northsea/ClaudeProjects/bol-seller-messenger-v3/logs/launchd-stdout.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/Users/northsea/ClaudeProjects/bol-seller-messenger-v3/logs/launchd-stderr.log</string>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/northsea/ClaudeProjects/bol-seller-messenger-v3</string>
+    
+    <key>RunAtLoad</key>
+    <false/>
+    
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>

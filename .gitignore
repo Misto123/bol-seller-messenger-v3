@@ -43,3 +43,4 @@ next-env.d.ts
 # database
 /data
 /public/screenshots
+.campaign-settings.json

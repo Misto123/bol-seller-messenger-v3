@@ -120,8 +120,21 @@ export default function SettingsPage() {
     }
   }, []);
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
+    // Save to localStorage for web UI
     localStorage.setItem('campaignSettings', JSON.stringify(settings));
+    
+    // Save to file for recurring tasks
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+    } catch (error) {
+      console.error('Failed to save settings file:', error);
+    }
+    
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
