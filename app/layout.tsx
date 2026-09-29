@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import AuthWrapper from "./components/AuthWrapper";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "BOL Seller Messenger - Automated Outreach",
@@ -19,7 +23,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className="h-full antialiased"
+      className={cn("h-full antialiased", "font-sans", geist.variable)}
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
