@@ -16,7 +16,7 @@ export default function AuthWrapper({ children }: { children: ReactNode }) {
   }, []);
 
   const unlock = () => {
-    if (password === 'rerereu') {
+    if (password === 'rereeu') {
       sessionStorage.setItem('authenticated', 'true');
       setAuthenticated(true);
       setError('');
