@@ -45,12 +45,16 @@ interface CampaignSettings {
   keywords: string[];
   cooldownMinutes: number;
   messagesPerKeyword: number;
+  messageSpreadMinutes: number;
   messageTemplates: MessageTemplate[];
   senderNames: string[];
   senderEmails: string[];
   senderPhones: string[];
   subject: string;
   sponsoredOnly: boolean;
+  recurringEnabled: boolean;
+  recurringIntervalDays: number;
+  recurringEndDate: string;
 }
 
 export default function Home() {
@@ -89,6 +93,15 @@ export default function Home() {
         parsed.senderPhones = [parsed.senderPhone];
         delete parsed.senderPhone;
       }
+      // Migrate to add new fields with defaults
+      if (parsed.messageSpreadMinutes === undefined) {
+        parsed.messageSpreadMinutes = 3;
+      }
+      if (parsed.recurringEnabled === undefined) {
+        parsed.recurringEnabled = false;
+        parsed.recurringIntervalDays = 7;
+        parsed.recurringEndDate = '';
+      }
       setSettings(parsed);
       setCustomSubject(parsed.subject || "");
     }
@@ -119,6 +132,7 @@ export default function Home() {
           keywords: selectedKeywords,
           cooldownMinutes: settings.cooldownMinutes,
           messagesPerKeyword: settings.messagesPerKeyword,
+          messageSpreadMinutes: settings.messageSpreadMinutes,
           messageTemplates: settings.messageTemplates,
           senderNames: settings.senderNames,
           senderEmails: settings.senderEmails,
@@ -258,7 +272,13 @@ export default function Home() {
                     <p>✓ You can safely close this page - the campaign continues on the server</p>
                     <p>✓ Check back anytime or view results in History when complete</p>
                     <p>✓ AdsPower browser will automatically close when finished</p>
-                    <p>✓ Estimated time: ~{selectedKeywords.length * settings.cooldownMinutes} minutes</p>
+                    <p>✓ Estimated time: ~{Math.ceil(
+                      selectedKeywords.length * (
+                        settings.messagesPerKeyword * settings.messageSpreadMinutes + 
+                        settings.cooldownMinutes
+                      )
+                    )} minutes</p>
+                    <p className="text-xs italic">Includes {settings.messageSpreadMinutes} min between each message</p>
                   </div>
                 </div>
               </div>
@@ -366,20 +386,43 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3 text-sm">
+              <div className="grid gap-4 sm:grid-cols-4 text-sm">
                 <div className="rounded-lg border border-gray-200 p-3">
-                  <p className="text-gray-600 mb-1">Messages per keyword</p>
+                  <p className="text-gray-600 mb-1">Target per keyword</p>
                   <p className="text-lg font-semibold text-gray-900">{settings.messagesPerKeyword}</p>
+                  <p className="text-xs text-gray-500 mt-1">Successful contacts</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <p className="text-gray-600 mb-1">Message spread</p>
+                  <p className="text-lg font-semibold text-gray-900">{settings.messageSpreadMinutes} min</p>
+                  <p className="text-xs text-gray-500 mt-1">Between messages</p>
                 </div>
                 <div className="rounded-lg border border-gray-200 p-3">
                   <p className="text-gray-600 mb-1">Cooldown</p>
                   <p className="text-lg font-semibold text-gray-900">{settings.cooldownMinutes} min</p>
+                  <p className="text-xs text-gray-500 mt-1">Between keywords</p>
                 </div>
                 <div className="rounded-lg border border-gray-200 p-3">
                   <p className="text-gray-600 mb-1">Sponsored only</p>
                   <p className="text-lg font-semibold text-gray-900">{settings.sponsoredOnly ? "Yes" : "No"}</p>
+                  <p className="text-xs text-gray-500 mt-1">Filter type</p>
                 </div>
               </div>
+
+              {settings.recurringEnabled && (
+                <>
+                  <Separator />
+                  <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-purple-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-purple-900">
+                        <p className="font-medium mb-1">🔁 Recurring Campaign Active</p>
+                        <p>Runs automatically every {settings.recurringIntervalDays} day(s) until {settings.recurringEndDate || 'end date'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <Separator />
 

@@ -23,18 +23,23 @@ interface CampaignSettings {
   keywords: string[];
   cooldownMinutes: number;
   messagesPerKeyword: number;
+  messageSpreadMinutes: number;
   messageTemplates: MessageTemplate[];
   senderNames: string[];
   senderEmails: string[];
   senderPhones: string[];
   subject: string;
   sponsoredOnly: boolean;
+  recurringEnabled: boolean;
+  recurringIntervalDays: number;
+  recurringEndDate: string;
 }
 
 const DEFAULT_SETTINGS: CampaignSettings = {
   keywords: ['powerbank', 'usb kabel', 'telefoonhoesje'],
   cooldownMinutes: 5,
   messagesPerKeyword: 8,
+  messageSpreadMinutes: 3,
   messageTemplates: [
     {
       id: '1',
@@ -77,6 +82,9 @@ const DEFAULT_SETTINGS: CampaignSettings = {
   ],
   subject: 'Vraag over product',
   sponsoredOnly: false,
+  recurringEnabled: false,
+  recurringIntervalDays: 7,
+  recurringEndDate: '',
 };
 
 const PLACEHOLDERS = [
@@ -316,9 +324,121 @@ export default function SettingsPage() {
                       setSettings({ ...settings, messagesPerKeyword: parseInt(e.target.value) || 1 })
                     }
                   />
-                  <p className="text-xs text-gray-600">Maximum messages to send per keyword</p>
+                  <p className="text-xs text-gray-600">Target: successfully contact this many sellers (skips don't count)</p>
                 </div>
               </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="messageSpread">Message spread timing (minutes)</Label>
+                <Input
+                  id="messageSpread"
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={settings.messageSpreadMinutes}
+                  onChange={(e) =>
+                    setSettings({ ...settings, messageSpreadMinutes: parseInt(e.target.value) || 1 })
+                  }
+                />
+                <p className="text-xs text-gray-600">Wait time between each message to appear more natural</p>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="sponsored-only">Sponsored listings only</Label>
+                    <p className="text-xs text-gray-600">Only contact sellers with sponsored products</p>
+                  </div>
+                  <Switch
+                    id="sponsored-only"
+                    checked={settings.sponsoredOnly}
+                    onCheckedChange={(checked) =>
+                      setSettings({ ...settings, sponsoredOnly: checked })
+                    }
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recurring Campaigns */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Settings2 className="h-4 w-4 text-gray-700" />
+                <CardTitle className="text-base">Recurring Campaigns</CardTitle>
+              </div>
+              <CardDescription>Automatically run campaigns on a schedule</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="recurring-enabled">Enable recurring campaigns</Label>
+                  <p className="text-xs text-gray-600">Run this campaign automatically</p>
+                </div>
+                <Switch
+                  id="recurring-enabled"
+                  checked={settings.recurringEnabled}
+                  onCheckedChange={(checked) =>
+                    setSettings({ ...settings, recurringEnabled: checked })
+                  }
+                />
+              </div>
+
+              {settings.recurringEnabled && (
+                <>
+                  <Separator />
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="recurring-interval">Run every (days)</Label>
+                      <Input
+                        id="recurring-interval"
+                        type="number"
+                        min="1"
+                        max="90"
+                        value={settings.recurringIntervalDays}
+                        onChange={(e) =>
+                          setSettings({ ...settings, recurringIntervalDays: parseInt(e.target.value) || 1 })
+                        }
+                      />
+                      <p className="text-xs text-gray-600">Campaign will run every X days</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="recurring-end-date">End date</Label>
+                      <Input
+                        id="recurring-end-date"
+                        type="date"
+                        value={settings.recurringEndDate}
+                        onChange={(e) =>
+                          setSettings({ ...settings, recurringEndDate: e.target.value })
+                        }
+                      />
+                      <p className="text-xs text-gray-600">Stop recurring after this date</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-blue-900">
+                        <p className="font-medium mb-1">How it works:</p>
+                        <ul className="space-y-1 pl-4 list-disc">
+                          <li>Campaign runs automatically every {settings.recurringIntervalDays} day(s)</li>
+                          <li>Respects cooldown rules (won't contact sellers contacted in last 6 months)</li>
+                          <li>Stops automatically on {settings.recurringEndDate || 'end date'}</li>
+                          <li>You'll receive email notifications for each run</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 

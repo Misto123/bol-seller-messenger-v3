@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
       subjects = [],
       phone = '',
       count = 1,
-      filterSponsored = false 
+      filterSponsored = false,
+      messageSpreadMinutes = 3
     } = body;
 
     // Helper function to pick random item from array
@@ -106,6 +107,13 @@ export async function POST(request: NextRequest) {
             // Only increment counter for successfully sent messages
             if (status === 'sent') {
               sentCount++;
+              
+              // Add delay between messages (message spread timing)
+              if (sentCount < targetCount) {
+                const delayMs = messageSpreadMinutes * 60 * 1000;
+                console.log(`[API] Waiting ${messageSpreadMinutes} minutes before next message...`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+              }
             }
 
             results.push({
