@@ -4,6 +4,25 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Header from '../components/Header';
 import Image from 'next/image';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { 
+  CheckCircle2, 
+  XCircle, 
+  Clock, 
+  ChevronDown, 
+  ChevronUp, 
+  RefreshCw,
+  History as HistoryIcon,
+  ArrowLeft,
+  Mail,
+  User,
+  Phone,
+  Tag,
+  Globe
+} from 'lucide-react';
 
 interface MessageLog {
   id: number;
@@ -69,167 +88,224 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <Header />
       
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-5xl px-6 py-8">
+        {/* Page Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <HistoryIcon className="h-6 w-6 text-gray-900" />
+              <h1 className="text-2xl font-semibold text-gray-900">Campaign History</h1>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Link href="/">
+                <Button variant="outline" size="sm">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Dashboard
+                </Button>
+              </Link>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">
+            All sent messages with detailed logs
+          </p>
+        </div>
+
         {/* Stats Cards */}
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-4">
-          <div className="rounded-lg bg-white p-6 shadow">
-            <div className="text-sm font-medium text-gray-600">Totaal</div>
-            <div className="mt-2 text-3xl font-bold text-gray-900">{stats.total}</div>
-          </div>
-          <div className="rounded-lg bg-white p-6 shadow">
-            <div className="text-sm font-medium text-gray-600">Verzonden</div>
-            <div className="mt-2 text-3xl font-bold text-green-600">{stats.sent}</div>
-          </div>
-          <div className="rounded-lg bg-white p-6 shadow">
-            <div className="text-sm font-medium text-gray-600">Mislukt</div>
-            <div className="mt-2 text-3xl font-bold text-red-600">{stats.failed}</div>
-          </div>
-          <div className="rounded-lg bg-white p-6 shadow">
-            <div className="text-sm font-medium text-gray-600">Overgeslagen</div>
-            <div className="mt-2 text-3xl font-bold text-gray-600">{stats.skipped}</div>
-          </div>
+        <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-gray-600 mb-2">Total</div>
+              <div className="text-3xl font-bold text-gray-900">{stats.total}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-gray-600 mb-2">Sent</div>
+              <div className="text-3xl font-bold text-green-600">{stats.sent}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-gray-600 mb-2">Failed</div>
+              <div className="text-3xl font-bold text-red-600">{stats.failed}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-sm text-gray-600 mb-2">Skipped</div>
+              <div className="text-3xl font-bold text-gray-600">{stats.skipped}</div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Bericht Geschiedenis</h1>
-            <p className="mt-1 text-sm text-gray-600">Alle verzonden berichten met details</p>
-          </div>
-          <button
-            onClick={fetchData}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            ↻ Vernieuwen
-          </button>
-        </div>
-
-        {/* Messages List */}
-        {loading ? (
-          <div className="rounded-lg bg-white p-12 text-center shadow">
-            <p className="text-gray-600">Laden...</p>
-          </div>
-        ) : logs.length === 0 ? (
-          <div className="rounded-lg bg-white p-12 text-center shadow">
-            <p className="text-gray-600">Nog geen berichten verzonden</p>
-            <Link href="/" className="mt-4 inline-block text-blue-600 hover:underline">
-              Start je eerste campagne →
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {logs.map((log) => (
-              <div
-                key={log.id}
-                className="overflow-hidden rounded-lg bg-white shadow transition-all hover:shadow-md"
-              >
-                <div className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="text-lg font-semibold text-gray-900">{log.shop_name}</h3>
-                        <span
-                          className={`rounded-full px-3 py-1 text-xs font-medium ${
-                            log.status === 'sent'
-                              ? 'bg-green-100 text-green-800'
-                              : log.status === 'failed'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          {log.status === 'sent' ? '✓ Verzonden' : log.status === 'failed' ? '✗ Mislukt' : '⊘ Overgeslagen'}
-                        </span>
-                      </div>
-                      
-                      <div className="mt-2 space-y-1 text-sm text-gray-600">
-                        <div><span className="font-medium">Product:</span> {log.product_title}</div>
-                        <div><span className="font-medium">Zoekwoord:</span> {log.keyword}</div>
-                        <div><span className="font-medium">Onderwerp:</span> {log.subject}</div>
-                        <div className="flex gap-4">
-                          <span><span className="font-medium">Profiel:</span> {log.adspower_profile}</span>
-                          <span>
-                            <span className="font-medium">IP:</span>{' '}
-                            {log.ip_address ? (
-                              <span className="text-blue-600">{log.ip_address}</span>
-                            ) : (
-                              <span className="text-gray-400">Geen IP</span>
-                            )}
-                          </span>
-                        </div>
-                      </div>
-
-                      {log.error_message && (
-                        <div className="mt-3 rounded-md bg-red-50 p-3 text-sm text-red-800">
-                          <span className="font-medium">Fout:</span> {log.error_message}
-                        </div>
-                      )}
-
-                      <button
-                        onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
-                        className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
-                      >
-                        {expandedId === log.id ? '↑ Minder details' : '↓ Meer details'}
-                      </button>
-
-                      {expandedId === log.id && (
-                        <div className="mt-4 space-y-3 border-t pt-4">
-                          <div>
-                            <div className="text-xs font-medium uppercase text-gray-500">Bericht</div>
-                            <div className="mt-1 whitespace-pre-wrap rounded-md bg-gray-50 p-3 text-sm text-gray-700">
-                              {log.message}
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <div className="text-xs font-medium uppercase text-gray-500">Afzender</div>
-                              <div className="mt-1 text-gray-700">{log.sender_name}</div>
-                              <div className="text-gray-600">{log.sender_email}</div>
-                              {log.sender_phone && <div className="text-gray-600">{log.sender_phone}</div>}
-                            </div>
-                            <div>
-                              <div className="text-xs font-medium uppercase text-gray-500">Verbinding</div>
-                              <div className="mt-1">
-                                <div className="text-gray-700">Profiel: {log.adspower_profile}</div>
-                                <div className="text-gray-700">
-                                  IP: {log.ip_address ? (
-                                    <span className="font-mono text-blue-600">{log.ip_address}</span>
-                                  ) : (
-                                    <span className="text-gray-400">Geen IP gedetecteerd</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="ml-6 flex flex-col items-end gap-3">
-                      <div className="text-right text-sm text-gray-500">
-                        {formatDate(log.timestamp)}
-                      </div>
-                      
-                      {log.screenshot_path && (
-                        <div className="relative h-32 w-48 overflow-hidden rounded-md border border-gray-200">
-                          <Image
-                            src={log.screenshot_path}
-                            alt="Screenshot"
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+        {/* Message Logs */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Message Log</CardTitle>
+            <CardDescription>
+              {logs.length} messages in database
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="h-6 w-6 animate-spin text-gray-400" />
+                <span className="ml-2 text-sm text-gray-600">Loading...</span>
               </div>
-            ))}
-          </div>
-        )}
+            ) : logs.length === 0 ? (
+              <div className="rounded-lg border border-gray-200 p-8 text-center">
+                <HistoryIcon className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+                <p className="text-sm font-medium text-gray-900 mb-1">No messages yet</p>
+                <p className="text-sm text-gray-600">
+                  Start a campaign from the Dashboard to see logs here
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {logs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="rounded-lg border border-gray-200 overflow-hidden hover:border-gray-300 transition-colors"
+                  >
+                    {/* Collapsed View */}
+                    <div
+                      className="p-4 cursor-pointer flex items-center justify-between"
+                      onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                    >
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        {/* Status */}
+                        <div className="flex-shrink-0">
+                          {log.status === 'sent' && (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            </div>
+                          )}
+                          {log.status === 'failed' && (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                              <XCircle className="h-5 w-5 text-red-600" />
+                            </div>
+                          )}
+                          {log.status === 'skipped' && (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+                              <Clock className="h-5 w-5 text-gray-600" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {log.shop_name}
+                            </p>
+                            <Badge variant="secondary" className="text-xs">
+                              {log.keyword}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-gray-600 truncate">
+                            {log.product_title}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatDate(log.timestamp)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Expand Icon */}
+                      <div className="flex-shrink-0 ml-4">
+                        {expandedId === log.id ? (
+                          <ChevronUp className="h-5 w-5 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="h-5 w-5 text-gray-400" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expanded View */}
+                    {expandedId === log.id && (
+                      <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-4">
+                        {/* Sender Info */}
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-2">Sender Information</h4>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <User className="h-4 w-4 text-gray-400" />
+                              <span className="text-gray-900">{log.sender_name}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Mail className="h-4 w-4 text-gray-400" />
+                              <span className="text-gray-900">{log.sender_email}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Phone className="h-4 w-4 text-gray-400" />
+                              <span className="text-gray-900">{log.sender_phone}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <Globe className="h-4 w-4 text-gray-400" />
+                              <span className="text-gray-900">{log.ip_address || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Message Content */}
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-2">Message</h4>
+                          <div className="rounded-md bg-white border border-gray-200 p-3">
+                            <p className="text-sm font-medium text-gray-900 mb-2">
+                              Subject: {log.subject}
+                            </p>
+                            <pre className="whitespace-pre-wrap text-xs text-gray-700 font-sans">
+                              {log.message}
+                            </pre>
+                          </div>
+                        </div>
+
+                        {/* Screenshot */}
+                        {log.screenshot_path && (
+                          <div>
+                            <h4 className="text-xs font-medium text-gray-700 mb-2">Screenshot</h4>
+                            <div className="rounded-md border border-gray-200 overflow-hidden">
+                              <Image
+                                src={log.screenshot_path}
+                                alt="Message screenshot"
+                                width={800}
+                                height={600}
+                                className="w-full h-auto"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Error Message */}
+                        {log.error_message && (
+                          <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                            <p className="text-xs font-medium text-red-900 mb-1">Error</p>
+                            <p className="text-xs text-red-700">{log.error_message}</p>
+                          </div>
+                        )}
+
+                        {/* Technical Details */}
+                        <div className="text-xs text-gray-600">
+                          <p>Profile: {log.adspower_profile}</p>
+                          <p>ID: {log.id}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

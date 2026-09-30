@@ -3,6 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Header from "./components/Header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Play, StopCircle, CheckCircle2, XCircle, Clock, Tag, Settings2, AlertCircle } from "lucide-react";
 
 type Result = {
   seller: string;
@@ -32,53 +41,14 @@ interface CampaignSettings {
   sponsoredOnly: boolean;
 }
 
-function Pool({
-  label,
-  values,
-  placeholder,
-  onChange,
-}: {
-  label: string;
-  values: string[];
-  placeholder: string;
-  onChange: (values: string[]) => void;
-}) {
-  return (
-    <div className="pool">
-      <div className="pooltitle">
-        <span>{label}</span>
-        <small>up to 5</small>
-      </div>
-      {values.map((value, index) => (
-        <input
-          key={`${label}-${index}`}
-          value={value}
-          placeholder={placeholder}
-          onChange={(event) =>
-            onChange(values.map((item, itemIndex) => itemIndex === index ? event.target.value : item))
-          }
-        />
-      ))}
-      {values.length < 5 && (
-        <button className="add" type="button" onClick={() => onChange([...values, ""])}>
-          + Add another
-        </button>
-      )}
-    </div>
-  );
-}
-
 export default function Home() {
-  const [password, setPassword] = useState("");
-  const [runError, setRunError] = useState("");
   const [settings, setSettings] = useState<CampaignSettings | null>(null);
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
-  const [useCustomMessage, setUseCustomMessage] = useState(false);
-  const [customMessage, setCustomMessage] = useState("");
-  const [phone, setPhone] = useState("0624530190");
+  const [customSubject, setCustomSubject] = useState("");
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
   const [startedAt, setStartedAt] = useState("");
+  const [runError, setRunError] = useState("");
 
   useEffect(() => {
     const stored = localStorage.getItem('campaignSettings');
@@ -107,313 +77,370 @@ export default function Home() {
         delete parsed.senderPhone;
       }
       setSettings(parsed);
-      // Set first phone as default, or empty for random generation
-      setPhone(parsed.senderPhones?.[0] || "");
+      setCustomSubject(parsed.subject || "");
     }
   }, []);
 
   async function startOutreach() {
     if (!settings) {
-      setRunError("Geen instellingen gevonden. Ga naar Instellingen om te configureren.");
+      setRunError("No settings found. Go to Settings to configure.");
       return;
     }
 
     if (selectedKeywords.length === 0) {
-      setRunError("Selecteer minimaal één zoekwoord");
+      setRunError("Select at least one keyword");
       return;
     }
 
     setRunning(true);
     setRunError("");
     setResults([]);
-    setStartedAt(new Date().toLocaleString());
+    setStartedAt(new Date().toLocaleString('nl-NL'));
 
     try {
-      const messagesToSend = useCustomMessage && customMessage
-        ? [customMessage]
-        : settings.messageTemplates.filter(t => t.enabled).map(t => t.content);
-
-      if (messagesToSend.length === 0) {
-        setRunError("Selecteer minimaal één template in de instellingen");
-        return;
-      }
-
-      const response = await fetch("/api/run", {
+      const res = await fetch("/api/run", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           keywords: selectedKeywords,
-          count: settings.messagesPerKeyword,
-          messages: messagesToSend,
-          names: settings.senderNames,
-          emails: settings.senderEmails,
-          phones: settings.senderPhones,
-          subjects: [settings.subject],
-          phone: phone,
           cooldownMinutes: settings.cooldownMinutes,
+          messagesPerKeyword: settings.messagesPerKeyword,
+          messageTemplates: settings.messageTemplates,
+          senderNames: settings.senderNames,
+          senderEmails: settings.senderEmails,
+          senderPhones: settings.senderPhones,
+          subject: customSubject || settings.subject,
           sponsoredOnly: settings.sponsoredOnly,
         }),
       });
-      if (!response.ok) throw new Error("Run failed");
-      const data = (await response.json()) as { results?: Result[]; error?: string };
-      setResults(data.results ?? []);
-      if (data.error) setRunError(data.error);
-    } catch {
-      setRunError("Run failed. Check the workflow service and try again.");
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setRunError(data.error || "Er ging iets mis");
+        setRunning(false);
+        return;
+      }
+
+      setResults(data.results || []);
+
+      // Save to history
+      const historyItem = {
+        timestamp: new Date().toISOString(),
+        keywords: selectedKeywords,
+        subject: customSubject || settings.subject,
+        results: data.results || [],
+        settings: {
+          cooldownMinutes: settings.cooldownMinutes,
+          messagesPerKeyword: settings.messagesPerKeyword,
+          sponsoredOnly: settings.sponsoredOnly,
+        },
+      };
+
+      const history = JSON.parse(localStorage.getItem("campaignHistory") || "[]");
+      history.unshift(historyItem);
+      localStorage.setItem("campaignHistory", JSON.stringify(history.slice(0, 50)));
+
+    } catch (error) {
+      console.error("Error:", error);
+      setRunError("Network error or server unavailable");
     } finally {
       setRunning(false);
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
-      <div className="container">
-      <div className="header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <img src="/logo.svg" alt="BOL Messenger" style={{ width: '48px', height: '48px' }} />
-          <div>
-            <h1>BOL Seller Messenger</h1>
-            <p className="subtitle">Automatisch contact maken met verkopers op BOL.nl</p>
-            <p style={{ fontSize: '11px', color: '#64736c', marginTop: '4px' }}>v2.4.0 • Gedeployed: 29 Sep 2026</p>
-          </div>
-        </div>
-        <Link href="/settings" className="settings-button">
-          ⚙️ Instellingen
-        </Link>
-      </div>
+  function stopOutreach() {
+    setRunning(false);
+  }
 
-      {!settings && (
-        <div className="warning-box">
-          <p>
-            ⚠️ Geen instellingen gevonden. Ga naar{' '}
-            <Link href="/settings" style={{ textDecoration: 'underline', fontWeight: 600 }}>
-              Instellingen
-            </Link>{' '}
-            om uw campagne te configureren.
+  const toggleKeyword = (keyword: string) => {
+    if (selectedKeywords.includes(keyword)) {
+      setSelectedKeywords(selectedKeywords.filter((k) => k !== keyword));
+    } else {
+      setSelectedKeywords([...selectedKeywords, keyword]);
+    }
+  };
+
+  const selectAllKeywords = () => {
+    if (settings) {
+      setSelectedKeywords([...settings.keywords]);
+    }
+  };
+
+  const deselectAllKeywords = () => {
+    setSelectedKeywords([]);
+  };
+
+  const sentCount = results.filter((r) => r.status === "sent").length;
+  const failedCount = results.filter((r) => r.status === "failed").length;
+  const skippedCount = results.filter((r) => r.status === "skipped").length;
+
+  if (!settings) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <main className="mx-auto max-w-5xl px-6 py-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-orange-600" />
+                No settings configured
+              </CardTitle>
+              <CardDescription>
+                Configure your campaign settings before starting
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/settings">
+                <Button>
+                  <Settings2 className="mr-2 h-4 w-4" />
+                  Go to Settings
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  const enabledTemplates = settings.messageTemplates.filter((t) => t.enabled);
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Header />
+
+      <main className="mx-auto max-w-5xl px-6 py-8">
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-2">Campaign Dashboard</h1>
+          <p className="text-sm text-gray-600">
+            Start and monitor your BOL.nl seller outreach campaigns
           </p>
         </div>
-      )}
 
-        {settings && (
-          <div className="info-box" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none' }}>
-            <h3 style={{ color: 'white', marginBottom: '16px' }}>📊 Campagne Overzicht</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-              <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', backdropFilter: 'blur(10px)' }}>
-                <div style={{ fontSize: '14px', opacity: 0.9 }}>Zoekwoorden</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{settings.keywords.length}</div>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', backdropFilter: 'blur(10px)' }}>
-                <div style={{ fontSize: '14px', opacity: 0.9 }}>Per Keyword</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{settings.messagesPerKeyword}</div>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', backdropFilter: 'blur(10px)' }}>
-                <div style={{ fontSize: '14px', opacity: 0.9 }}>Cooldown</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{settings.cooldownMinutes}m</div>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '8px', backdropFilter: 'blur(10px)' }}>
-                <div style={{ fontSize: '14px', opacity: 0.9 }}>Actieve Templates</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{settings.messageTemplates.filter(t => t.enabled).length}/{settings.messageTemplates.length}</div>
-              </div>
+        {/* Error Message */}
+        {runError && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <p className="text-sm font-medium text-red-900">{runError}</p>
             </div>
           </div>
         )}
 
-      <div className="form">
-        {settings && (
-          <>
-            <div className="field">
-              <label>Selecteer Zoekwoorden</label>
-              <div className="keyword-buttons">
+        <div className="space-y-6">
+          {/* Keywords Selection */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-gray-700" />
+                    <CardTitle className="text-base">Select Keywords</CardTitle>
+                  </div>
+                  <CardDescription>
+                    {selectedKeywords.length} of {settings.keywords.length} keywords selected
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={selectAllKeywords}>
+                    Select all
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={deselectAllKeywords}>
+                    Clear
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
                 {settings.keywords.map((kw) => (
-                  <button
+                  <Badge
                     key={kw}
-                    type="button"
-                    onClick={() => {
-                      if (selectedKeywords.includes(kw)) {
-                        setSelectedKeywords(selectedKeywords.filter((k) => k !== kw));
-                      } else {
-                        setSelectedKeywords([...selectedKeywords, kw]);
-                      }
-                    }}
-                    className={selectedKeywords.includes(kw) ? 'keyword-button selected' : 'keyword-button'}
+                    variant={selectedKeywords.includes(kw) ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => toggleKeyword(kw)}
                   >
                     {kw}
-                  </button>
+                  </Badge>
                 ))}
               </div>
-              <p className="hint">
-                Geselecteerd: {selectedKeywords.length > 0 ? selectedKeywords.join(', ') : 'Geen'}
-              </p>
-            </div>
+            </CardContent>
+          </Card>
 
-            <div>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={useCustomMessage}
-                  onChange={(e) => setUseCustomMessage(e.target.checked)}
-                  style={{ marginRight: '8px' }}
-                />
-                Gebruik aangepast bericht (in plaats van templates)
-              </label>
-              {useCustomMessage && (
-                <textarea
-                  rows={6}
-                  value={customMessage}
-                  onChange={(e) => setCustomMessage(e.target.value)}
-                  placeholder="Schrijf uw aangepaste bericht... Gebruik {{sellerName}}, {{productTitle}}, etc."
-                  style={{ fontFamily: 'monospace', fontSize: '13px', marginTop: '8px' }}
-                />
-              )}
-              {!useCustomMessage && (
-                <>
-                  <p className="hint" style={{ marginTop: '8px', marginBottom: '12px' }}>
-                    Het systeem zal willekeurig een template kiezen uit uw {settings.messageTemplates.filter(t => t.enabled).length} actieve templates
-                  </p>
-                  <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', maxHeight: '300px', overflowY: 'auto' }}>
-                    <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: 600, color: '#374151' }}>Actieve templates:</h4>
-                    {settings.messageTemplates.filter(t => t.enabled).map((template) => (
-                      <div key={template.id} style={{ marginBottom: '12px', padding: '8px', background: 'white', border: '1px solid #d1d5db', borderRadius: '6px' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#6b7280', marginBottom: '4px' }}>{template.name}:</div>
-                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '12px', color: '#374151' }}>
-                          {template.content}
-                        </pre>
-                      </div>
-                    ))}
-                    {settings.messageTemplates.filter(t => t.enabled).length === 0 && (
-                      <p style={{ color: '#ef4444', fontSize: '14px' }}>Geen templates geselecteerd. Ga naar Instellingen om templates te selecteren.</p>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </>
-        )}
-
-        <div className="field">
-          <label htmlFor="phone">Telefoonnummer (optioneel)</label>
-          <input
-            type="tel"
-            id="phone"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="0612345678"
-          />
-        </div>
-
-        <button onClick={startOutreach} disabled={running || !settings || selectedKeywords.length === 0}>
-          {running ? "⏳ Bezig met versturen..." : "🚀 Start Outreach"}
-        </button>
-
-        {runError && <div className="error">{runError}</div>}
-      </div>
-
-      {(results.length > 0 || running) && (
-        <div className="results">
-          <h2>Results {startedAt && `— ${startedAt}`}</h2>
-          <div className="results-list">
-            {results.map((result, index) => (
-              <div key={index} className={`result-item ${result.status}`}>
-                <div className="result-seller">{result.seller}</div>
-                {result.keyword && <div className="result-keyword">Keyword: {result.keyword}</div>}
-                <div className="result-status">
-                  {result.status === "sent" && "✓ Sent"}
-                  {result.status === "failed" && "✗ Failed"}
-                  {result.status === "skipped" && "⊘ Skipped"}
-                </div>
-                {result.reason && <div className="result-reason">{result.reason}</div>}
-                <div className="result-time">{result.timestamp}</div>
+          {/* Campaign Configuration */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Settings2 className="h-4 w-4 text-gray-700" />
+                <CardTitle className="text-base">Campaign Configuration</CardTitle>
               </div>
-            ))}
-          </div>
+              <CardDescription>
+                {enabledTemplates.length} templates • {settings.senderNames.length} names • {settings.senderEmails.length} emails
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-3 text-sm">
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <p className="text-gray-600 mb-1">Messages per keyword</p>
+                  <p className="text-lg font-semibold text-gray-900">{settings.messagesPerKeyword}</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <p className="text-gray-600 mb-1">Cooldown</p>
+                  <p className="text-lg font-semibold text-gray-900">{settings.cooldownMinutes} min</p>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-3">
+                  <p className="text-gray-600 mb-1">Sponsored only</p>
+                  <p className="text-lg font-semibold text-gray-900">{settings.sponsoredOnly ? "Yes" : "No"}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label htmlFor="subject">Custom subject line (optional)</Label>
+                <Input
+                  id="subject"
+                  value={customSubject}
+                  onChange={(e) => setCustomSubject(e.target.value)}
+                  placeholder={settings.subject}
+                />
+                <p className="text-xs text-gray-600">
+                  Leave empty to use default: "{settings.subject}"
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Control Panel */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Campaign Control</CardTitle>
+              <CardDescription>
+                Start your outreach campaign when ready
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-3">
+                {!running ? (
+                  <Button
+                    onClick={startOutreach}
+                    disabled={selectedKeywords.length === 0}
+                    size="lg"
+                    className="w-full sm:w-auto"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Start Campaign
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={stopOutreach}
+                    variant="destructive"
+                    size="lg"
+                    className="w-full sm:w-auto"
+                  >
+                    <StopCircle className="mr-2 h-4 w-4" />
+                    Stop Campaign
+                  </Button>
+                )}
+                <Link href="/history" className="w-full sm:w-auto">
+                  <Button variant="outline" size="lg" className="w-full">
+                    <Clock className="mr-2 h-4 w-4" />
+                    View History
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Results */}
+          {results.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Campaign Results</CardTitle>
+                <CardDescription>Started at {startedAt}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Summary Stats */}
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <p className="text-sm font-medium text-green-900">Sent</p>
+                    </div>
+                    <p className="text-2xl font-bold text-green-900">{sentCount}</p>
+                  </div>
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <XCircle className="h-4 w-4 text-red-600" />
+                      <p className="text-sm font-medium text-red-900">Failed</p>
+                    </div>
+                    <p className="text-2xl font-bold text-red-900">{failedCount}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Clock className="h-4 w-4 text-gray-600" />
+                      <p className="text-sm font-medium text-gray-900">Skipped</p>
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900">{skippedCount}</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Results Table */}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-gray-900">Details</h3>
+                  <div className="rounded-lg border border-gray-200">
+                    <div className="max-h-96 overflow-auto">
+                      <table className="w-full text-sm">
+                        <thead className="border-b border-gray-200 bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left font-medium text-gray-700">Status</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-700">Seller</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-700">Keyword</th>
+                            <th className="px-4 py-3 text-left font-medium text-gray-700">Time</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {results.map((result, index) => (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="px-4 py-3">
+                                {result.status === "sent" && (
+                                  <Badge variant="default" className="bg-green-600">
+                                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                                    Sent
+                                  </Badge>
+                                )}
+                                {result.status === "failed" && (
+                                  <Badge variant="destructive">
+                                    <XCircle className="mr-1 h-3 w-3" />
+                                    Failed
+                                  </Badge>
+                                )}
+                                {result.status === "skipped" && (
+                                  <Badge variant="secondary">
+                                    <Clock className="mr-1 h-3 w-3" />
+                                    Skipped
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-gray-900">{result.seller}</td>
+                              <td className="px-4 py-3 text-gray-600">{result.keyword}</td>
+                              <td className="px-4 py-3 text-gray-600 text-xs">{result.timestamp}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
-      )}
-
-      <Link href="/history" className="history-link">
-        📜 Bekijk Geschiedenis
-      </Link>
-
-      <style jsx>{`
-        .container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
-        .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 2rem; }
-        .settings-button {
-          padding: 0.75rem 1.5rem;
-          background: #2563eb;
-          color: white;
-          border-radius: 8px;
-          text-decoration: none;
-          font-weight: 500;
-        }
-        .settings-button:hover { background: #1d4ed8; }
-        .subtitle { color: #6b7280; margin-top: 0.5rem; }
-        .warning-box {
-          background: #fef3c7;
-          border: 1px solid #fcd34d;
-          border-radius: 8px;
-          padding: 1rem;
-          margin-bottom: 1.5rem;
-          color: #92400e;
-        }
-        .info-box {
-          background: #dbeafe;
-          border: 1px solid #93c5fd;
-          border-radius: 8px;
-          padding: 1rem;
-          margin-bottom: 1.5rem;
-        }
-        .info-box h3 { margin: 0 0 0.5rem 0; color: #1e3a8a; font-size: 1rem; }
-        .info-grid { display: grid; gap: 0.25rem; color: #1e40af; font-size: 0.875rem; }
-        .form { background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .field { margin-bottom: 1.5rem; }
-        .field label { display: block; font-weight: 500; margin-bottom: 0.5rem; color: #374151; }
-        .field input[type="tel"], .field textarea {
-          width: 100%;
-          padding: 0.75rem;
-          border: 1px solid #d1d5db;
-          border-radius: 8px;
-          font-size: 1rem;
-        }
-        .hint { font-size: 0.875rem; color: #6b7280; margin-top: 0.5rem; }
-        .keyword-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
-        .keyword-button {
-          padding: 0.5rem 1rem;
-          border: none;
-          border-radius: 8px;
-          background: #e5e7eb;
-          color: #374151;
-          cursor: pointer;
-          font-weight: 500;
-          transition: all 0.2s;
-        }
-        .keyword-button:hover { background: #d1d5db; }
-        .keyword-button.selected { background: #2563eb; color: white; }
-        button { width: 100%; padding: 1rem; background: #10b981; color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 1rem; cursor: pointer; }
-        button:hover:not(:disabled) { background: #059669; }
-        button:disabled { background: #9ca3af; cursor: not-allowed; }
-        .error { margin-top: 1rem; padding: 1rem; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b; }
-        .results { margin-top: 2rem; background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .results h2 { margin: 0 0 1rem 0; }
-        .results-list { display: grid; gap: 1rem; }
-        .result-item { padding: 1rem; border-radius: 8px; border-left: 4px solid; }
-        .result-item.sent { background: #d1fae5; border-color: #10b981; }
-        .result-item.failed { background: #fee2e2; border-color: #ef4444; }
-        .result-item.skipped { background: #f3f4f6; border-color: #6b7280; }
-        .result-seller { font-weight: 600; margin-bottom: 0.25rem; }
-        .result-keyword { font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem; }
-        .result-status { font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
-        .result-reason { font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem; }
-        .result-time { font-size: 0.75rem; color: #9ca3af; }
-        .history-link { display: block; margin-top: 2rem; text-align: center; color: #2563eb; font-weight: 500; text-decoration: none; }
-        .history-link:hover { text-decoration: underline; }
-        .login { max-width: 400px; margin: 10rem auto; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .login h1 { text-align: center; margin-bottom: 1.5rem; }
-        .login input { width: 100%; padding: 0.75rem; margin-bottom: 1rem; border: 1px solid #d1d5db; border-radius: 8px; }
-        .login button { width: 100%; padding: 0.75rem; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
-        .login button:hover { background: #1d4ed8; }
-      `}</style>
-      </div>
+      </main>
     </div>
   );
 }
