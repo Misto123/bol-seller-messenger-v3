@@ -7,11 +7,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Play, StopCircle, CheckCircle2, XCircle, Clock, Tag, Settings2, AlertCircle } from "lucide-react";
+import { 
+  Play, 
+  StopCircle, 
+  CheckCircle2, 
+  XCircle, 
+  Clock, 
+  Tag, 
+  Settings2, 
+  AlertCircle,
+  Loader2,
+  Mail,
+  ExternalLink,
+  Info,
+  History as HistoryIcon
+} from "lucide-react";
 
 type Result = {
   seller: string;
@@ -49,6 +61,7 @@ export default function Home() {
   const [results, setResults] = useState<Result[]>([]);
   const [startedAt, setStartedAt] = useState("");
   const [runError, setRunError] = useState("");
+  const [campaignStarted, setCampaignStarted] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem('campaignSettings');
@@ -93,6 +106,7 @@ export default function Home() {
     }
 
     setRunning(true);
+    setCampaignStarted(true);
     setRunError("");
     setResults([]);
     setStartedAt(new Date().toLocaleString('nl-NL'));
@@ -205,6 +219,7 @@ export default function Home() {
   }
 
   const enabledTemplates = settings.messageTemplates.filter((t) => t.enabled);
+  const uniqueEmails = [...new Set(settings.senderEmails)];
 
   return (
     <div className="min-h-screen bg-white">
@@ -227,6 +242,76 @@ export default function Home() {
               <p className="text-sm font-medium text-red-900">{runError}</p>
             </div>
           </div>
+        )}
+
+        {/* Campaign Running Info */}
+        {running && (
+          <Card className="mb-6 border-blue-200 bg-blue-50">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <Loader2 className="h-6 w-6 text-blue-600 animate-spin flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-blue-900 mb-2">
+                    Campaign Running...
+                  </h3>
+                  <div className="space-y-2 text-sm text-blue-800">
+                    <p>✓ You can safely close this page - the campaign continues on the server</p>
+                    <p>✓ Check back anytime or view results in History when complete</p>
+                    <p>✓ AdsPower browser will automatically close when finished</p>
+                    <p>✓ Estimated time: ~{selectedKeywords.length * settings.cooldownMinutes} minutes</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Success Info - After Campaign Completes */}
+        {campaignStarted && !running && sentCount > 0 && (
+          <Card className="mb-6 border-green-200 bg-green-50">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <CheckCircle2 className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-green-900 mb-2">
+                    Campaign Complete! {sentCount} Messages Sent
+                  </h3>
+                  <div className="space-y-3 text-sm text-green-800">
+                    <p className="font-medium">✓ Check your inbox for seller replies:</p>
+                    <div className="space-y-1.5 pl-4">
+                      {uniqueEmails.map((email) => (
+                        <div key={email} className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-green-600" />
+                          <a
+                            href={`https://purelymail.com/manage/account/login`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-green-900 hover:text-green-700 underline font-medium flex items-center gap-1"
+                          >
+                            {email}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                    <Separator className="my-3" />
+                    <div className="flex items-start gap-2">
+                      <Info className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium mb-1">Next Steps:</p>
+                        <ul className="space-y-1 pl-4 list-disc">
+                          <li>Login to <a href="https://purelymail.com" target="_blank" rel="noopener noreferrer" className="underline">purelymail.com</a> to check replies</li>
+                          <li>View full details in <Link href="/history" className="underline">History</Link></li>
+                          <li>Screenshots are saved in the database (check History page)</li>
+                          <li>AdsPower browser has been closed automatically</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         <div className="space-y-6">
@@ -259,7 +344,7 @@ export default function Home() {
                   <Badge
                     key={kw}
                     variant={selectedKeywords.includes(kw) ? "default" : "outline"}
-                    className="cursor-pointer"
+                    className="cursor-pointer px-3 py-1.5 text-sm"
                     onClick={() => toggleKeyword(kw)}
                   >
                     {kw}
@@ -277,7 +362,7 @@ export default function Home() {
                 <CardTitle className="text-base">Campaign Configuration</CardTitle>
               </div>
               <CardDescription>
-                {enabledTemplates.length} templates • {settings.senderNames.length} names • {settings.senderEmails.length} emails
+                {enabledTemplates.length} templates • {settings.senderNames.length} names • {uniqueEmails.length} email addresses
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -305,6 +390,7 @@ export default function Home() {
                   value={customSubject}
                   onChange={(e) => setCustomSubject(e.target.value)}
                   placeholder={settings.subject}
+                  disabled={running}
                 />
                 <p className="text-xs text-gray-600">
                   Leave empty to use default: "{settings.subject}"
@@ -322,13 +408,13 @@ export default function Home() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 {!running ? (
                   <Button
                     onClick={startOutreach}
                     disabled={selectedKeywords.length === 0}
                     size="lg"
-                    className="w-full sm:w-auto"
+                    className="flex-1"
                   >
                     <Play className="mr-2 h-4 w-4" />
                     Start Campaign
@@ -338,15 +424,15 @@ export default function Home() {
                     onClick={stopOutreach}
                     variant="destructive"
                     size="lg"
-                    className="w-full sm:w-auto"
+                    className="flex-1"
                   >
                     <StopCircle className="mr-2 h-4 w-4" />
                     Stop Campaign
                   </Button>
                 )}
-                <Link href="/history" className="w-full sm:w-auto">
+                <Link href="/history" className="flex-1">
                   <Button variant="outline" size="lg" className="w-full">
-                    <Clock className="mr-2 h-4 w-4" />
+                    <HistoryIcon className="mr-2 h-4 w-4" />
                     View History
                   </Button>
                 </Link>
@@ -395,7 +481,7 @@ export default function Home() {
                   <div className="rounded-lg border border-gray-200">
                     <div className="max-h-96 overflow-auto">
                       <table className="w-full text-sm">
-                        <thead className="border-b border-gray-200 bg-gray-50">
+                        <thead className="border-b border-gray-200 bg-gray-50 sticky top-0">
                           <tr>
                             <th className="px-4 py-3 text-left font-medium text-gray-700">Status</th>
                             <th className="px-4 py-3 text-left font-medium text-gray-700">Seller</th>
