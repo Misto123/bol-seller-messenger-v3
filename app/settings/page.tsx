@@ -123,8 +123,32 @@ export default function SettingsPage() {
     }
   }, []);
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
     localStorage.setItem('campaignSettings', JSON.stringify(settings));
+    
+    // If recurring is enabled, save to database
+    if (settings.recurringEnabled) {
+      try {
+        const response = await fetch('/api/recurring-campaign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'BOL Campaign',
+            enabled: settings.recurringEnabled,
+            interval_days: settings.recurringIntervalDays,
+            end_date: settings.recurringEndDate || null,
+            settings: settings,
+          }),
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to save recurring campaign to database');
+        }
+      } catch (error) {
+        console.error('Error saving recurring campaign:', error);
+      }
+    }
+    
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
