@@ -59,15 +59,25 @@ export class BolAutomation {
     const pages = await this.currentBrowser.pages();
     this.currentPage = pages[0] || await this.currentBrowser.newPage();
     
-    // Detect IP address
+    // Detect IP address and location
     try {
-      await this.currentPage.goto('https://api.ipify.org?format=json', { waitUntil: 'domcontentloaded', timeout: 10000 });
+      await this.currentPage.goto('https://ipapi.co/json/', { waitUntil: 'domcontentloaded', timeout: 10000 });
       const ipData = await this.currentPage.evaluate(() => document.body.textContent);
       const parsed = JSON.parse(ipData);
-      this.ipAddress = parsed.ip;
+      this.ipAddress = `${parsed.ip} (${parsed.city || 'Unknown'}, ${parsed.country_name || 'Unknown'})`;
       console.log(`[BOL] Detected IP: ${this.ipAddress}`);
+      console.log(`[BOL] Proxy Info - ISP: ${parsed.org || 'Unknown'}, Region: ${parsed.region || 'Unknown'}`);
     } catch (error) {
-      console.log(`[BOL] Could not detect IP address`);
+      // Fallback to simple IP
+      try {
+        await this.currentPage.goto('https://api.ipify.org?format=json', { waitUntil: 'domcontentloaded', timeout: 10000 });
+        const ipData = await this.currentPage.evaluate(() => document.body.textContent);
+        const parsed = JSON.parse(ipData);
+        this.ipAddress = parsed.ip;
+        console.log(`[BOL] Detected IP: ${this.ipAddress}`);
+      } catch (error2) {
+        console.log(`[BOL] Could not detect IP address`);
+      }
     }
   }
 

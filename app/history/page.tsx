@@ -249,7 +249,12 @@ export default function HistoryPage() {
                             </div>
                             <div className="flex items-center gap-2 text-sm">
                               <Globe className="h-4 w-4 text-gray-400" />
-                              <span className="text-gray-900">{log.ip_address || 'N/A'}</span>
+                              <span className="text-gray-900 font-mono">{log.ip_address || 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-mono">
+                                Profile: {log.adspower_profile}
+                              </span>
                             </div>
                           </div>
                         </div>
