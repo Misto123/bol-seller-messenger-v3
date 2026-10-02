@@ -90,7 +90,9 @@ export async function POST(request: NextRequest) {
             const senderPhone = senderPhones.length > 0 ? pickRandom(senderPhones) : generateRandomPhone();
             const messageSubject = subject || 'Product inquiry';
             
-            console.log(`[API] Random selection - Name: ${senderName}, Email: ${senderEmail}, Phone: ${senderPhone}`);
+            console.log(`[API] Seller data - Name: "${seller.name}", Product: "${seller.productTitle}"`);
+            console.log(`[API] Sender - Name: ${senderName}, Email: ${senderEmail}, Phone: ${senderPhone}`);
+            console.log(`[API] Template before replace: ${template.substring(0, 100)}...`);
             
             const message = template
               .replace(/\{\{sellerName\}\}/g, seller.name)
@@ -99,6 +101,8 @@ export async function POST(request: NextRequest) {
               .replace(/\{\{senderName\}\}/g, senderName)
               .replace(/\{\{senderEmail\}\}/g, senderEmail)
               .replace(/\{\{senderPhone\}\}/g, senderPhone);
+            
+            console.log(`[API] Message after replace: ${message.substring(0, 100)}...`);
 
             const result = await automation.contactSeller(seller, {
               name: senderName,
