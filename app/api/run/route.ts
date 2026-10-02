@@ -10,14 +10,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { 
       keywords = [], 
-      messages = [],
-      names = [],
-      emails = [],
-      phones = [],
-      subjects = [],
-      phone = '',
-      count = 1,
-      filterSponsored = false,
+      messageTemplates = [],
+      senderNames = [],
+      senderEmails = [],
+      senderPhones = [],
+      subject = '',
+      messagesPerKeyword = 3,
+      cooldownMinutes = 5,
+      sponsoredOnly = false,
       messageSpreadMinutes = 3
     } = body;
 
@@ -61,12 +61,19 @@ export async function POST(request: NextRequest) {
         try {
           console.log(`[API] Processing keyword: ${keyword}`);
           
-          const sellers = await automation.searchProducts(keyword, filterSponsored);
+          const sellers = await automation.searchProducts(keyword, sponsoredOnly);
           
           console.log(`[API] Found ${sellers.length} sellers for "${keyword}"`);
 
           let sentCount = 0;
-          const targetCount = count || 3;
+          const targetCount = messagesPerKeyword;
+
+          // Get enabled templates only
+          const enabledTemplates = messageTemplates.filter((t: any) => t.enabled);
+          if (enabledTemplates.length === 0) {
+            console.log(`[API] No enabled templates for "${keyword}"`);
+            continue;
+          }
 
           // Process each seller until we reach target count of SENT messages
           for (const seller of sellers) {
@@ -77,11 +84,11 @@ export async function POST(request: NextRequest) {
             }
 
             // Randomly select sender details for this message
-            const template = pickRandom(messages) || 'Hello {{sellerName}}, interested in {{productTitle}}';
-            const senderName = pickRandom(names) || 'Unknown';
-            const senderEmail = pickRandom(emails) || 'noreply@example.com';
-            const senderPhone = phones.length > 0 ? pickRandom(phones) : generateRandomPhone();
-            const subject = pickRandom(subjects) || 'Product inquiry';
+            const template = pickRandom(enabledTemplates.map((t: any) => t.content)) || 'Hello {{sellerName}}, interested in {{productTitle}}';
+            const senderName = pickRandom(senderNames) || 'Unknown';
+            const senderEmail = pickRandom(senderEmails) || 'noreply@example.com';
+            const senderPhone = senderPhones.length > 0 ? pickRandom(senderPhones) : generateRandomPhone();
+            const messageSubject = subject || 'Product inquiry';
             
             console.log(`[API] Random selection - Name: ${senderName}, Email: ${senderEmail}, Phone: ${senderPhone}`);
             
@@ -97,7 +104,7 @@ export async function POST(request: NextRequest) {
               name: senderName,
               email: senderEmail,
               phone: senderPhone,
-              subject,
+              subject: messageSubject,
               message,
             }, keyword);
 
@@ -119,7 +126,7 @@ export async function POST(request: NextRequest) {
             results.push({
               seller: seller.name,
               keyword,
-              subject,
+              subject: messageSubject,
               message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
               timestamp: result.timestamp,
               status,
