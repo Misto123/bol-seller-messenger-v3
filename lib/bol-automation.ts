@@ -135,22 +135,33 @@ export class BolAutomation {
         await page.goto(product.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
         await new Promise(resolve => setTimeout(resolve, 3000));
         
-        const sellerInfo = await page.evaluate(() => {
+        const pageInfo = await page.evaluate(() => {
+          // Get seller info
           const sellerLink = document.querySelector('a[href*="/nl/nl/v/"]');
+          
+          // Get product title from h1 or meta tags
+          let productTitle = document.querySelector('h1')?.textContent?.trim() || 
+                           document.querySelector('[data-test="title"]')?.textContent?.trim() ||
+                           document.querySelector('meta[property="og:title"]')?.getAttribute('content') ||
+                           document.title.split('|')[0].trim() ||
+                           'Product';
+          
           if (sellerLink) {
             return {
               seller: sellerLink.textContent?.trim() || 'Unknown',
-              url: sellerLink.getAttribute('href') || ''
+              url: sellerLink.getAttribute('href') || '',
+              productTitle: productTitle
             };
           }
           return null;
         });
         
-        if (sellerInfo && sellerInfo.seller.toLowerCase() !== 'bol') {
-          console.log(`[BOL] Found seller: ${sellerInfo.seller}`);
+        if (pageInfo && pageInfo.seller.toLowerCase() !== 'bol') {
+          console.log(`[BOL] Found seller: ${pageInfo.seller}`);
+          console.log(`[BOL] Product title: ${pageInfo.productTitle}`);
           sellers.push({
-            name: sellerInfo.seller,
-            productTitle: product.title,
+            name: pageInfo.seller,
+            productTitle: pageInfo.productTitle,
             productUrl: product.url,
             sponsored: product.sponsored || false
           });
