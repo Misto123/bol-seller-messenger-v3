@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BolAutomation } from '@/lib/bol-automation';
+import { insertMessageLog } from '@/lib/supabase-db';
 
 // Edge Runtime doesn't support puppeteer, use Node.js runtime
 export const runtime = 'nodejs';
@@ -52,9 +53,51 @@ export async function POST(request: NextRequest) {
     const results: any[] = [];
     const automation = new BolAutomation(profileId, cloudBrowserUrl, cloudBrowserApiKey);
 
+    const logFailure = async (keyword: string, error: unknown) => {
+      const reason = error instanceof Error ? error.message : String(error);
+      const senderName = pickRandom(senderNames) || 'Unknown';
+      const senderEmail = pickRandom(senderEmails) || 'noreply@example.com';
+      const senderPhone = senderPhones.length > 0 ? pickRandom(senderPhones) : generateRandomPhone();
+      const timestamp = new Date().toISOString();
+
+      await insertMessageLog({
+        shop_name: 'Campaign system',
+        product_title: '',
+        keyword,
+        message: '',
+        subject: subject || 'Product inquiry',
+        sender_name: senderName,
+        sender_email: senderEmail,
+        sender_phone: senderPhone,
+        screenshot_path: null,
+        adspower_profile: profileId,
+        ip_address: null,
+        status: 'failed',
+        error_message: reason,
+        timestamp,
+      });
+
+      results.push({
+        seller: 'Campaign system',
+        keyword,
+        subject: subject || 'Product inquiry',
+        message: '',
+        timestamp,
+        status: 'failed',
+        reason,
+      });
+    };
+
     try {
       // Initialize browser
-      await automation.initialize();
+      try {
+        await automation.initialize();
+      } catch (error) {
+        for (const keyword of keywords) {
+          await logFailure(keyword, error);
+        }
+        return NextResponse.json({ results, error: error instanceof Error ? error.message : String(error) }, { status: 502 });
+      }
 
       // Process each keyword
       for (const keyword of keywords) {
@@ -71,7 +114,7 @@ export async function POST(request: NextRequest) {
           // Get enabled templates only
           const enabledTemplates = messageTemplates.filter((t: any) => t.enabled);
           if (enabledTemplates.length === 0) {
-            console.log(`[API] No enabled templates for "${keyword}"`);
+            await logFailure(keyword, 'No enabled message templates configured');
             continue;
           }
 
@@ -141,13 +184,7 @@ export async function POST(request: NextRequest) {
           }
         } catch (error: any) {
           console.error(`[API] Error processing keyword "${keyword}":`, error);
-          results.push({
-            seller: 'Error',
-            keyword,
-            status: 'failed',
-            reason: error.message,
-            timestamp: new Date().toISOString(),
-          });
+          await logFailure(keyword, error);
         }
       }
     } finally {
@@ -161,14 +198,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('[API] Campaign error:', error);
-    return NextResponse.json({
-      results: [{
-        seller: 'System Error',
-        keyword: '',
-        status: 'failed',
-        reason: error.message,
-        timestamp: new Date().toISOString(),
-      }]
-    }, { status: 500 });
+    return NextResponse.json({ results: [], error: error.message }, { status: 500 });
   }
 }

@@ -125,7 +125,7 @@ export class BolAutomation {
     }
     
     const sellers: Seller[] = [];
-    const maxCheck = Math.min(10, productLinks.length);
+    const maxCheck = Math.min(50, productLinks.length);
     
     for (let i = 0; i < maxCheck; i++) {
       const product = productLinks[i];
@@ -166,7 +166,6 @@ export class BolAutomation {
             sponsored: product.sponsored || false
           });
           
-          if (sellers.length >= 2) break;
         }
       } catch (error: any) {
         console.log(`[BOL] Error on product ${i + 1}: ${error.message}`);
