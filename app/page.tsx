@@ -22,7 +22,8 @@ import {
   Mail,
   ExternalLink,
   Info,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Eye
 } from "lucide-react";
 
 type Result = {
@@ -32,6 +33,23 @@ type Result = {
   timestamp: string;
   status: "sent" | "failed" | "skipped";
   reason?: string;
+};
+
+type DryRunPreview = {
+  keyword: string;
+  seller?: string;
+  productTitle?: string;
+  productUrl?: string;
+  sponsored?: boolean;
+  senderName?: string;
+  senderEmail?: string;
+  senderPhone?: string;
+  subject?: string;
+  message?: string;
+  duplicate?: boolean;
+  status: "ready_to_send" | "would_skip_duplicate" | "duplicate_check_unavailable" | "search_failed";
+  unresolvedVariables?: string[];
+  error?: string;
 };
 
 interface MessageTemplate {
@@ -66,6 +84,9 @@ export default function Home() {
   const [startedAt, setStartedAt] = useState("");
   const [runError, setRunError] = useState("");
   const [campaignStarted, setCampaignStarted] = useState(false);
+  const [dryRunLoading, setDryRunLoading] = useState(false);
+  const [dryRunError, setDryRunError] = useState("");
+  const [dryRunPreviews, setDryRunPreviews] = useState<DryRunPreview[]>([]);
 
   useEffect(() => {
     const stored = localStorage.getItem('campaignSettings');
@@ -177,6 +198,35 @@ export default function Home() {
     }
   }
 
+  async function runDryRun() {
+    if (!settings || selectedKeywords.length === 0) return;
+    setDryRunLoading(true);
+    setDryRunError("");
+    setDryRunPreviews([]);
+    try {
+      const response = await fetch("/api/qa/dry-run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          keywords: selectedKeywords,
+          messageTemplates: settings.messageTemplates,
+          senderNames: settings.senderNames,
+          senderEmails: settings.senderEmails,
+          senderPhones: settings.senderPhones,
+          subject: customSubject || settings.subject,
+          sponsoredOnly: settings.sponsoredOnly,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Dry run failed");
+      setDryRunPreviews(data.previews || []);
+    } catch (error) {
+      setDryRunError(error instanceof Error ? error.message : "Dry run failed");
+    } finally {
+      setDryRunLoading(false);
+    }
+  }
+
   function stopOutreach() {
     setRunning(false);
   }
@@ -255,6 +305,12 @@ export default function Home() {
               <AlertCircle className="h-5 w-5 text-red-600" />
               <p className="text-sm font-medium text-red-900">{runError}</p>
             </div>
+          </div>
+        )}
+
+        {dryRunError && (
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+            Safe QA preview failed: {dryRunError}
           </div>
         )}
 
@@ -479,9 +535,61 @@ export default function Home() {
                     View History
                   </Button>
                 </Link>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="flex-1"
+                  onClick={runDryRun}
+                  disabled={selectedKeywords.length === 0 || running || dryRunLoading}
+                  title="Searches and previews only. Does not send messages or write history."
+                >
+                  {dryRunLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eye className="mr-2 h-4 w-4" />}
+                  {dryRunLoading ? "Checking safely…" : "Safe QA preview"}
+                </Button>
               </div>
+              <p className="mt-3 text-xs text-gray-600">
+                Safe QA preview searches selected keywords and previews rendered messages. It never submits messages or adds history records.
+              </p>
             </CardContent>
           </Card>
+
+          {dryRunPreviews.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Safe QA Preview</CardTitle>
+                <CardDescription>
+                  {dryRunPreviews.length} seller preview(s). 0 messages sent; 0 history records written.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {dryRunPreviews.map((preview, index) => (
+                  <div key={`${preview.keyword}-${preview.seller || "error"}-${index}`} className="rounded-lg border border-gray-200 p-4 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={preview.status === "ready_to_send" ? "default" : preview.status === "would_skip_duplicate" ? "secondary" : "destructive"}>
+                        {preview.status === "ready_to_send" ? "Ready — not sent" : preview.status === "would_skip_duplicate" ? "Would skip: recently contacted" : preview.status === "duplicate_check_unavailable" ? "Duplicate status unavailable" : "Search failed"}
+                      </Badge>
+                      <span className="text-xs text-gray-600">Keyword: {preview.keyword}</span>
+                    </div>
+                    {preview.error ? (
+                      <p className="text-sm text-red-700">{preview.error}</p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-gray-900"><strong>Seller:</strong> {preview.seller}</p>
+                        <p className="text-sm text-gray-900"><strong>Product:</strong> {preview.productTitle}</p>
+                        <p className="text-sm text-gray-600"><strong>Sender:</strong> {preview.senderName} · {preview.senderEmail}</p>
+                        <p className="text-sm text-gray-600"><strong>Subject:</strong> {preview.subject}</p>
+                        <pre className="whitespace-pre-wrap rounded-md bg-gray-50 border border-gray-200 p-3 text-xs text-gray-800 font-sans">{preview.message}</pre>
+                        {preview.unresolvedVariables && preview.unresolvedVariables.length > 0 && (
+                          <p className="text-sm text-red-700">Unresolved template variables: {preview.unresolvedVariables.join(", ")}</p>
+                        )}
+                        {preview.productUrl && <a href={preview.productUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-700 underline">Open product page</a>}
+                      </>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Results */}
           {results.length > 0 && (

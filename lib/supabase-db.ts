@@ -148,11 +148,15 @@ export async function getMessageLogStats() {
 }
 
 export async function wasSellerContactedRecently(shopName: string, monthsAgo: number = 6): Promise<boolean> {
+  return (await checkSellerContactRecently(shopName, monthsAgo)).contacted;
+}
+
+export async function checkSellerContactRecently(shopName: string, monthsAgo: number = 6): Promise<{ contacted: boolean; checked: boolean }> {
   const client = getSupabase();
   
   if (!client) {
     console.warn('[DB] Supabase not configured - cannot check duplicates');
-    return false;
+    return { contacted: false, checked: false };
   }
 
   try {
@@ -169,12 +173,12 @@ export async function wasSellerContactedRecently(shopName: string, monthsAgo: nu
 
     if (error) {
       console.error('[DB] Duplicate check error:', error);
-      return false;
+      return { contacted: false, checked: false };
     }
 
-    return (data && data.length > 0);
+    return { contacted: Boolean(data?.length), checked: true };
   } catch (error: any) {
     console.error('[DB] Duplicate check exception:', error.message);
-    return false;
+    return { contacted: false, checked: false };
   }
 }

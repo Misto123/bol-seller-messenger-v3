@@ -33,6 +33,10 @@ export class BolAutomation {
     this.cloudBrowser = new CloudBrowserClient(cloudBrowserUrl, cloudBrowserApiKey);
   }
 
+  getDetectedIp() {
+    return this.ipAddress;
+  }
+
   async initialize() {
     console.log(`[BOL] Starting cloud browser for profile ${this.profileId}...`);
     
@@ -81,7 +85,7 @@ export class BolAutomation {
     }
   }
 
-  async searchProducts(keyword: string, sponsoredOnly: boolean = false): Promise<Seller[]> {
+  async searchProducts(keyword: string, sponsoredOnly: boolean = false, maxSellerResults = 50, maxProductChecks = 50): Promise<Seller[]> {
     if (!this.currentPage) {
       throw new Error('Browser not initialized');
     }
@@ -125,7 +129,7 @@ export class BolAutomation {
     }
     
     const sellers: Seller[] = [];
-    const maxCheck = Math.min(50, productLinks.length);
+    const maxCheck = Math.min(50, maxProductChecks, productLinks.length);
     
     for (let i = 0; i < maxCheck; i++) {
       const product = productLinks[i];
@@ -165,6 +169,8 @@ export class BolAutomation {
             productUrl: product.url,
             sponsored: product.sponsored || false
           });
+
+          if (sellers.length >= maxSellerResults) break;
           
         }
       } catch (error: any) {
