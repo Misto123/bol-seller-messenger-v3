@@ -259,13 +259,29 @@ export default function Home() {
 
   const selectAllKeywords = () => {
     if (settings) {
-      setSelectedKeywords([...settings.keywords]);
+      const currentMonth = new Date().getMonth() + 1;
+      const monthKey = currentMonth.toString();
+      const monthlyKeywords = settings.monthlyKeywords?.[monthKey] || [];
+      // Combine base keywords with current month's seasonal keywords
+      const allAvailable = [...new Set([...settings.keywords, ...monthlyKeywords])];
+      setSelectedKeywords(allAvailable);
     }
   };
 
   const deselectAllKeywords = () => {
     setSelectedKeywords([]);
   };
+
+  // Get all available keywords (base + current month seasonal)
+  const getAvailableKeywords = () => {
+    if (!settings) return [];
+    const currentMonth = new Date().getMonth() + 1;
+    const monthKey = currentMonth.toString();
+    const monthlyKeywords = settings.monthlyKeywords?.[monthKey] || [];
+    return [...new Set([...settings.keywords, ...monthlyKeywords])];
+  };
+
+  const availableKeywords = getAvailableKeywords();
 
   const sentCount = results.filter((r) => r.status === "sent").length;
   const failedCount = results.filter((r) => r.status === "failed").length;
@@ -420,7 +436,7 @@ export default function Home() {
                     <CardTitle className="text-base">Select Keywords</CardTitle>
                   </div>
                   <CardDescription>
-                    {selectedKeywords.length} of {settings.keywords.length} keywords selected
+                    {selectedKeywords.length} of {availableKeywords.length} keywords selected
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -435,7 +451,7 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {settings.keywords.map((kw) => (
+                {availableKeywords.map((kw) => (
                   <Badge
                     key={kw}
                     variant={selectedKeywords.includes(kw) ? "default" : "outline"}
