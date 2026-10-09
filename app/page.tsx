@@ -73,6 +73,7 @@ interface CampaignSettings {
   recurringEnabled: boolean;
   recurringIntervalDays: number;
   recurringEndDate: string;
+  monthlyKeywords?: Record<string, string[]>; // month 1-12 -> up to 10 keywords
 }
 
 export default function Home() {
@@ -123,8 +124,19 @@ export default function Home() {
         parsed.recurringIntervalDays = 7;
         parsed.recurringEndDate = '';
       }
+      if (!parsed.monthlyKeywords) {
+        parsed.monthlyKeywords = {};
+      }
       setSettings(parsed);
       setCustomSubject(parsed.subject || "");
+
+      // Auto-select current month's seasonal keywords as defaults
+      const currentMonth = new Date().getMonth() + 1; // 1-12
+      const monthKey = currentMonth.toString();
+      const monthlyDefaults = parsed.monthlyKeywords?.[monthKey] || [];
+      if (monthlyDefaults.length > 0) {
+        setSelectedKeywords(monthlyDefaults);
+      }
     }
   }, []);
 

@@ -33,6 +33,7 @@ interface CampaignSettings {
   recurringEnabled: boolean;
   recurringIntervalDays: number;
   recurringEndDate: string;
+  monthlyKeywords?: Record<string, string[]>; // month 1-12 -> up to 10 keywords
 }
 
 const DEFAULT_SETTINGS: CampaignSettings = {
@@ -85,6 +86,20 @@ const DEFAULT_SETTINGS: CampaignSettings = {
   recurringEnabled: false,
   recurringIntervalDays: 7,
   recurringEndDate: '',
+  monthlyKeywords: {
+    '1': ['verwarmingselement', 'elektrische deken', 'luchtbevochtiger', 'thermosfles', 'winterjas', 'handschoenen', 'muts', 'sjaal', 'snowboard', 'skibril'],
+    '2': ['verwarmingselement', 'elektrische deken', 'luchtbevochtiger', 'thermosfles', 'winterjas', 'handschoenen', 'muts', 'sjaal', 'snowboard', 'skibril'],
+    '3': ['tuinmeubelen', 'parasol', 'bbq', 'plantenbak', 'tuingereedschap', 'regenpak', 'laarzen', 'paraplu', 'bloembollen', 'tuinslang'],
+    '4': ['tuinmeubelen', 'parasol', 'bbq', 'zwembad', 'luchtbed', 'strandlaken', 'koelbox', 'picknickmand', 'camping tent', 'slaapzak'],
+    '5': ['tuinmeubelen', 'parasol', 'bbq', 'zwembad', 'luchtbed', 'strandlaken', 'koelbox', 'picknickmand', 'camping tent', 'ventilator'],
+    '6': ['zwembad', 'luchtbed', 'strandlaken', 'zonnebrand', 'koelbox', 'ventilator', 'airco', 'tuinsproeier', 'waterfilter', 'ijsblokjesvorm'],
+    '7': ['zwembad', 'luchtbed', 'strandlaken', 'zonnebrand', 'koelbox', 'ventilator', 'airco', 'tuinsproeier', 'waterfilter', 'ijsblokjesvorm'],
+    '8': ['zwembad', 'luchtbed', 'strandlaken', 'zonnebrand', 'koelbox', 'ventilator', 'rugzak', 'waterfles', 'sportschoenen', 'fietsverlichting'],
+    '9': ['rugzak', 'schooltas', 'thermoskan', 'regenjas', 'paraplu', 'planner', 'bureaulamp', 'laptop sleeve', 'powerbank', 'usb kabel'],
+    '10': ['verwarmingselement', 'elektrische deken', 'thermoskan', 'regenjas', 'paraplu', 'led verlichting', 'kaarsen', 'waxinelichtjes', 'lantaarn', 'accu'],
+    '11': ['verwarmingselement', 'elektrische deken', 'luchtbevochtiger', 'thermoskan', 'winterjas', 'handschoenen', 'muts', 'sjaal', 'kerstverlichting', 'cadeaupapier'],
+    '12': ['kerstverlichting', 'cadeaupapier', 'kerstboom', 'kerstballen', 'adventkalender', 'chocolade', 'speelgoed', 'puzzel', 'bordspel', 'oliebollen vorm'],
+  },
 };
 
 const PLACEHOLDERS = [
@@ -103,6 +118,8 @@ export default function SettingsPage() {
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editContent, setEditContent] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
+  const [newMonthlyKeyword, setNewMonthlyKeyword] = useState('');
 
   useEffect(() => {
     const stored = localStorage.getItem('campaignSettings');
@@ -117,6 +134,11 @@ export default function SettingsPage() {
           content,
           enabled: true,
         }));
+      }
+      
+      // Add monthly keywords if missing
+      if (!parsed.monthlyKeywords) {
+        parsed.monthlyKeywords = DEFAULT_SETTINGS.monthlyKeywords;
       }
       
       setSettings(parsed);
@@ -220,6 +242,38 @@ export default function SettingsPage() {
     });
   };
 
+  const addMonthlyKeyword = () => {
+    if (newMonthlyKeyword.trim()) {
+      const currentKeywords = settings.monthlyKeywords?.[selectedMonth] || [];
+      if (currentKeywords.length < 10) {
+        setSettings({
+          ...settings,
+          monthlyKeywords: {
+            ...settings.monthlyKeywords,
+            [selectedMonth]: [...currentKeywords, newMonthlyKeyword.trim()],
+          },
+        });
+        setNewMonthlyKeyword('');
+      }
+    }
+  };
+
+  const removeMonthlyKeyword = (month: string, keyword: string) => {
+    const currentKeywords = settings.monthlyKeywords?.[month] || [];
+    setSettings({
+      ...settings,
+      monthlyKeywords: {
+        ...settings.monthlyKeywords,
+        [month]: currentKeywords.filter((k) => k !== keyword),
+      },
+    });
+  };
+
+  const monthNames = [
+    'Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni',
+    'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December',
+  ];
+
   const enabledCount = settings.messageTemplates.filter((t) => t.enabled).length;
 
   return (
@@ -291,6 +345,99 @@ export default function SettingsPage() {
                     </button>
                   </Badge>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Seasonal Keywords Section */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Tag className="h-4 w-4 text-gray-700" />
+                <CardTitle className="text-base">Seasonal Keywords (per maand)</CardTitle>
+              </div>
+              <CardDescription>
+                Stel 10 seizoensgebonden keywords in voor elke maand. Deze worden automatisch voorgeselecteerd op het dashboard.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Month Selector */}
+              <div>
+                <Label className="mb-2 block">Selecteer maand</Label>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  {monthNames.map((name, index) => {
+                    const monthNum = (index + 1).toString();
+                    const count = settings.monthlyKeywords?.[monthNum]?.length || 0;
+                    return (
+                      <option key={monthNum} value={monthNum}>
+                        {name} ({count}/10 keywords)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Add Keyword Input */}
+              <div className="flex gap-2">
+                <Input
+                  value={newMonthlyKeyword}
+                  onChange={(e) => setNewMonthlyKeyword(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addMonthlyKeyword()}
+                  placeholder={`Keyword toevoegen voor ${monthNames[parseInt(selectedMonth) - 1]}...`}
+                  className="flex-1"
+                  disabled={(settings.monthlyKeywords?.[selectedMonth]?.length || 0) >= 10}
+                />
+                <Button 
+                  onClick={addMonthlyKeyword} 
+                  size="default"
+                  disabled={(settings.monthlyKeywords?.[selectedMonth]?.length || 0) >= 10}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add
+                </Button>
+              </div>
+
+              {/* Current Month Keywords */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-sm">
+                    {monthNames[parseInt(selectedMonth) - 1]} keywords ({settings.monthlyKeywords?.[selectedMonth]?.length || 0}/10)
+                  </Label>
+                  {(settings.monthlyKeywords?.[selectedMonth]?.length || 0) >= 10 && (
+                    <span className="text-xs text-amber-600">Maximum bereikt</span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(settings.monthlyKeywords?.[selectedMonth] || []).map((keyword) => (
+                    <Badge key={keyword} variant="secondary" className="gap-1 pr-1">
+                      {keyword}
+                      <button
+                        onClick={() => removeMonthlyKeyword(selectedMonth, keyword)}
+                        className="ml-1 rounded-sm hover:bg-gray-200 p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  {(settings.monthlyKeywords?.[selectedMonth]?.length || 0) === 0 && (
+                    <p className="text-sm text-gray-500">Nog geen keywords voor deze maand</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Season Info */}
+              <div className="rounded-md bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+                <p className="font-medium mb-1">💡 Seizoen tips:</p>
+                <ul className="space-y-1 ml-4 list-disc">
+                  <li><strong>Winter (dec-feb):</strong> Verwarmingsproducten, kerstartikelen, winterkleding</li>
+                  <li><strong>Lente (mrt-mei):</strong> Tuinproducten, BBQ, buitenspeelgoed (verkoop zomerproducten!)</li>
+                  <li><strong>Zomer (jun-aug):</strong> Zwembaden, koelboxen, ventilators, strandartikelen</li>
+                  <li><strong>Herfst (sep-nov):</strong> Schoolartikelen, regenjassen, herfstdecoratie</li>
+                </ul>
               </div>
             </CardContent>
           </Card>
