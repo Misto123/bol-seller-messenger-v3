@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BolAutomation } from '@/lib/bol-automation';
+import { CloudBrowserConnectionError } from '@/lib/cloud-browser';
 import { checkSellerContactRecently } from '@/lib/supabase-db';
 
 export const runtime = 'nodejs';
@@ -98,12 +99,26 @@ export async function POST(request: NextRequest) {
       previews,
     });
   } catch (error) {
+    const cloudBrowserError = error instanceof CloudBrowserConnectionError;
+    console.error('[QA dry-run] Browser initialization failed', {
+      name: error instanceof Error ? error.name : 'UnknownError',
+      message: error instanceof Error ? error.message : String(error),
+      endpoint: cloudBrowserError ? error.endpoint : undefined,
+      attempts: cloudBrowserError ? error.attempts : undefined,
+      cause: cloudBrowserError ? error.causeMessage : undefined,
+    });
     return NextResponse.json({
       success: false,
       dryRun: true,
       messagesSent: 0,
       historyRecordsWritten: 0,
       error: error instanceof Error ? error.message : String(error),
+      diagnostics: cloudBrowserError ? {
+        endpoint: error.endpoint,
+        attempts: error.attempts,
+        cause: error.causeMessage || null,
+        guidance: 'Check that the Cloud Browser service is running, port 3000 is reachable from Vercel, and CLOUD_BROWSER_API_KEY is current.',
+      } : undefined,
     }, { status: 502 });
   } finally {
     try {

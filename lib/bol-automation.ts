@@ -39,6 +39,9 @@ export class BolAutomation {
 
   async initialize() {
     console.log(`[BOL] Starting cloud browser for profile ${this.profileId}...`);
+
+    // Safe, read-only connectivity check retries before the non-idempotent start request.
+    await this.cloudBrowser.checkStatus();
     
     const startResult = await this.cloudBrowser.startBrowser(this.profileId, 'adspower');
     

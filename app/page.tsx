@@ -218,7 +218,13 @@ export default function Home() {
         }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Dry run failed");
+      if (!response.ok) {
+        throw new Error(JSON.stringify({
+          httpStatus: response.status,
+          error: data.error || "Dry run failed",
+          diagnostics: data.diagnostics || null,
+        }, null, 2));
+      }
       setDryRunPreviews(data.previews || []);
     } catch (error) {
       setDryRunError(error instanceof Error ? error.message : "Dry run failed");
@@ -309,8 +315,9 @@ export default function Home() {
         )}
 
         {dryRunError && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-            Safe QA preview failed: {dryRunError}
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm font-medium text-red-900 mb-2">Safe QA preview failed. Full diagnostics:</p>
+            <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-red-900">{dryRunError}</pre>
           </div>
         )}
 
