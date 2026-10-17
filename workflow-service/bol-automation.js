@@ -100,15 +100,34 @@ class BolAutomation {
         await new Promise(resolve => setTimeout(resolve, 3000));
         
         const sellerInfo = await this.page.evaluate(() => {
-          // Look for "Verkoop door" text in underlined spans
-          const underlinedSpans = document.querySelectorAll('span.underline, span[class*="underline"]');
+          // Look for "Verkoop door" container - it's a parent span with nested button
+          const spans = document.querySelectorAll('span');
           
+          for (const span of spans) {
+            const ariaHidden = span.querySelector('span[aria-hidden="true"]');
+            if (ariaHidden && ariaHidden.textContent.trim() === 'Verkoop door') {
+              // Find the button with seller name (it has aria-haspopup="dialog")
+              const button = span.querySelector('button[aria-haspopup="dialog"]');
+              if (button) {
+                // Get the visible seller name from nested span with aria-hidden="true"
+                const sellerSpan = button.querySelector('span.underline span[aria-hidden="true"]');
+                if (sellerSpan) {
+                  const sellerName = sellerSpan.textContent.trim();
+                  if (sellerName) {
+                    return { seller: sellerName, shopName: sellerName };
+                  }
+                }
+              }
+            }
+          }
+          
+          // Fallback: old method for compatibility
+          const underlinedSpans = document.querySelectorAll('span.underline');
           for (const span of underlinedSpans) {
             const text = span.textContent.trim();
-            if (text.startsWith('Verkoop door')) {
-              // Extract seller name after "Verkoop door"
+            if (text.startsWith('Verkoop door') && !text.includes('Bekijk extra')) {
               const sellerName = text.replace(/^Verkoop door\s+/, '').split(/\s+(beoordeeld|rated)/)[0].trim();
-              return { seller: sellerName };
+              return { seller: sellerName, shopName: sellerName };
             }
           }
           
@@ -122,6 +141,7 @@ class BolAutomation {
             console.log(`[BOL] Found: ${sellerInfo.seller}`);
             sellers.push({
               name: sellerInfo.seller,
+              shopName: sellerInfo.shopName || sellerInfo.seller,
               productTitle: product.title,
               productUrl: product.url,
               sponsored: product.sponsored || false

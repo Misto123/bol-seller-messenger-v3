@@ -104,6 +104,7 @@ const DEFAULT_SETTINGS: CampaignSettings = {
 
 const PLACEHOLDERS = [
   { key: '{{sellerName}}', description: 'Naam van de verkoper' },
+  { key: '{{shopName}}', description: 'Naam van de winkel' },
   { key: '{{productTitle}}', description: 'Titel van het product' },
   { key: '{{keyword}}', description: 'Zoekwoord' },
   { key: '{{senderName}}', description: 'Uw naam' },
@@ -147,6 +148,17 @@ export default function SettingsPage() {
 
   const saveSettings = async () => {
     localStorage.setItem('campaignSettings', JSON.stringify(settings));
+    
+    // Always save to settings API for recurring tasks to read
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+    } catch (error) {
+      console.error('Failed to save settings to API:', error);
+    }
     
     // If recurring is enabled, save to database
     if (settings.recurringEnabled) {

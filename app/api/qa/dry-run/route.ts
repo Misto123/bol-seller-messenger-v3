@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
           const senderPhone = pickRandom(phones) ?? generateRandomPhone();
           const message = template
             .replace(/\{\{sellerName\}\}/g, seller.name)
+            .replace(/\{\{shopName\}\}/g, seller.shopName || seller.name)
             .replace(/\{\{productTitle\}\}/g, seller.productTitle)
             .replace(/\{\{keyword\}\}/g, keyword)
             .replace(/\{\{senderName\}\}/g, senderName)

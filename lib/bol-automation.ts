@@ -6,6 +6,7 @@ import fs from 'fs';
 
 export interface Seller {
   name: string;
+  shopName?: string;
   productTitle: string;
   productUrl: string;
   sponsored: boolean;
