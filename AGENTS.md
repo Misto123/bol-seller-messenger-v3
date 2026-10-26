@@ -96,3 +96,49 @@ ssh bram-ai-dev-1 "curl http://localhost:3100/health"
 # External (needs firewall rule)
 curl http://37.27.202.1:3100/health
 ```
+
+## Automated Daily Outreach
+
+**Purpose:** Sends 1 message per day at 09:00 AM to 1 unique BOL.com seller
+
+**Deployment:**
+- **Location:** `bram-ai-dev-1:~/bol-automation/`
+- **Script:** `daily-outreach.js`
+- **Schedule:** 09:00 AM daily (08:00 UTC)
+- **Logs:** `/tmp/bol-daily-outreach.log`
+
+**Management:**
+```bash
+# View cron schedule
+ssh bram-ai-dev-1 "crontab -l"
+
+# View recent logs
+ssh bram-ai-dev-1 "tail -50 /tmp/bol-daily-outreach.log"
+
+# Test manually
+ssh bram-ai-dev-1 "source ~/.nvm/nvm.sh && cd ~/bol-automation && node daily-outreach.js"
+
+# Edit configuration
+ssh bram-ai-dev-1 "nano ~/bol-automation/daily-outreach.js"
+
+# Stop automation
+ssh bram-ai-dev-1 "crontab -e"
+# Then comment out or delete the cron line
+```
+
+**Features:**
+- ✅ Runs automatically at 09:00 AM Amsterdam time
+- ✅ Sends to 1 unique seller per day
+- ✅ Rotates through keywords daily
+- ✅ Respects 6-month duplicate detection
+- ✅ Logs all activity
+- ✅ No manual intervention required
+
+**Configuration File:** `~/bol-automation/daily-outreach.js`
+```javascript
+keywords: ['powerbank', 'usb kabel', 'telefoonhoesje', 'oplader', 'headset']
+messagesPerKeyword: 1
+senderEmails: ['contact@rankpartners.org']
+```
+
+**Full Documentation:** `/Users/northsea/ClaudeProjects/bol-seller-messenger-v3/automation/README.md`
