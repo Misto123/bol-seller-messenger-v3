@@ -144,8 +144,40 @@ export class BolAutomation {
         await new Promise(resolve => setTimeout(resolve, 3000));
         
         const pageInfo = await page.evaluate(() => {
-          // Get seller info
-          const sellerLink = document.querySelector('a[href*="/nl/nl/v/"]');
+          // Get seller info - FIXED: Extract from nested structure
+          let sellerName = '';
+          let sellerUrl = '';
+          
+          // Look for "Verkoop door" container - parent span with nested button
+          const spans = document.querySelectorAll('span');
+          for (const span of spans) {
+            const ariaHidden = span.querySelector('span[aria-hidden="true"]');
+            if (ariaHidden && ariaHidden.textContent?.trim() === 'Verkoop door') {
+              // Find button with seller name (has aria-haspopup="dialog")
+              const button = span.querySelector('button[aria-haspopup="dialog"]');
+              if (button) {
+                // Get visible seller name from nested span with aria-hidden="true"
+                const sellerSpan = button.querySelector('span.underline span[aria-hidden="true"]');
+                if (sellerSpan) {
+                  sellerName = sellerSpan.textContent?.trim() || '';
+                }
+              }
+            }
+          }
+          
+          // Fallback: Try old method with seller link
+          if (!sellerName) {
+            const sellerLink = document.querySelector('a[href*="/nl/nl/v/"]');
+            if (sellerLink) {
+              sellerName = sellerLink.textContent?.trim() || '';
+              sellerUrl = sellerLink.getAttribute('href') || '';
+            }
+          }
+          
+          // Filter out "Bekijk extra partnervoorwaarden" explicitly
+          if (sellerName.includes('Bekijk extra')) {
+            sellerName = '';
+          }
           
           // Get product title from h1 or meta tags
           let productTitle = document.querySelector('h1')?.textContent?.trim() || 
@@ -154,10 +186,11 @@ export class BolAutomation {
                            document.title.split('|')[0].trim() ||
                            'Product';
           
-          if (sellerLink) {
+          if (sellerName) {
             return {
-              seller: sellerLink.textContent?.trim() || 'Unknown',
-              url: sellerLink.getAttribute('href') || '',
+              seller: sellerName,
+              shopName: sellerName,
+              url: sellerUrl,
               productTitle: productTitle
             };
           }
@@ -169,6 +202,7 @@ export class BolAutomation {
           console.log(`[BOL] Product title: ${pageInfo.productTitle}`);
           sellers.push({
             name: pageInfo.seller,
+            shopName: pageInfo.shopName || pageInfo.seller,
             productTitle: pageInfo.productTitle,
             productUrl: product.url,
             sponsored: product.sponsored || false

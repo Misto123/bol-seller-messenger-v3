@@ -7,3 +7,92 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# Deployment Infrastructure
+
+## VPS Server for Script Deployment
+
+**Purpose:** Deploy and run Node.js scripts, Docker containers, and automation services
+
+**Access:**
+- **SSH Alias:** `bram-ai-dev-1`
+- **Public IP:** `37.27.202.1`
+
+**Available:**
+```bash
+# Connect via alias (recommended)
+ssh bram-ai-dev-1
+
+# Or via public IP
+ssh 37.27.202.1
+```
+
+**Installed Software:**
+- Node.js
+- Docker
+- npm/yarn
+
+**Use Cases:**
+- Deploy Cloud Browser automation scripts
+- Run background Node.js services
+- Deploy Docker containers
+- Host workflow services (AdsPower automation, BOL scraper, etc.)
+
+**Deployment Commands:**
+```bash
+# Copy files to VPS
+scp local-file.js bram-ai-dev-1:/path/to/destination/
+
+# Deploy and restart service
+ssh bram-ai-dev-1 "cd /path/to/service && pm2 restart service-name"
+
+# Docker deployment
+ssh bram-ai-dev-1 "docker-compose up -d"
+```
+
+## Cloud Browser Service - Deployment Status
+
+**Current Deployment:**
+- **Location:** `bram-ai-dev-1:~/cloud-browser-service/`
+- **Status:** ✅ Running (pm2)
+- **Port:** 3100 (internal)
+- **Process Name:** `cloud-browser`
+- **Version:** v2.9.0 (with fixed seller name extraction)
+
+**Service Commands:**
+```bash
+# View status
+ssh bram-ai-dev-1 "source ~/.nvm/nvm.sh && pm2 status"
+
+# View logs
+ssh bram-ai-dev-1 "source ~/.nvm/nvm.sh && pm2 logs cloud-browser"
+
+# Restart service
+ssh bram-ai-dev-1 "source ~/.nvm/nvm.sh && pm2 restart cloud-browser"
+
+# Stop service
+ssh bram-ai-dev-1 "source ~/.nvm/nvm.sh && pm2 stop cloud-browser"
+```
+
+**Files Deployed:**
+- `bol-automation.js` (v2.9.0 - Fixed seller name extraction)
+- `server.js`
+- `database.js`
+- `logger.js`
+- `adspower.js`
+- `package.json`
+- `.env`
+
+**Next Steps to Complete:**
+1. Open port 3100 in VPS firewall (requires sudo)
+2. Update Vercel environment variable `CLOUD_BROWSER_URL` to: `http://37.27.202.1:3100`
+3. Test end-to-end workflow from production app
+
+**Health Check:**
+```bash
+# Internal (works)
+ssh bram-ai-dev-1 "curl http://localhost:3100/health"
+
+# External (needs firewall rule)
+curl http://37.27.202.1:3100/health
+```
