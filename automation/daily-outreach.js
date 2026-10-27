@@ -133,6 +133,13 @@ async function runDailyOutreach() {
   try {
     log('=== Starting Daily Outreach ===');
     
+    // Random human-like delay: 2-25 minutes so send time varies every day
+    // (never same minute; cron fires at round hour, this adds jitter)
+    const delayMs = (2 + Math.floor(Math.random() * 23)) * 60000;
+    const scheduledFor = new Date(Date.now() + delayMs).toISOString();
+    log(`Random delay: ${delayMs / 60000} min (sending ~${scheduledFor})`);
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+    
     // Guard: only send 1 message per day (prevents duplicates from cron overlap)
     const alreadySent = await sentTodayCount();
     if (alreadySent >= 1) {

@@ -350,6 +350,23 @@ export class BolAutomation {
   }
 
   async cleanup() {
+    // Close all open tabs/pages first to avoid accumulating tabs in AdsPower
+    if (this.currentBrowser) {
+      try {
+        const pages = await this.currentBrowser.pages();
+        for (const p of pages) {
+          try {
+            await p.close();
+          } catch (e) {
+            /* ignore per-page close errors */
+          }
+        }
+        console.log(`[BOL] Closed ${pages.length} page(s)`);
+      } catch (error) {
+        console.error(`[BOL] Error closing pages:`, error);
+      }
+    }
+
     if (this.currentBrowser) {
       try {
         await this.currentBrowser.disconnect();
