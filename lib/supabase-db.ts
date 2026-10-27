@@ -182,3 +182,34 @@ export async function checkSellerContactRecently(shopName: string, monthsAgo: nu
     return { contacted: false, checked: false };
   }
 }
+
+export async function countSendsForProfile(profileId: string, hoursAgo: number = 48): Promise<number> {
+  const client = getSupabase();
+
+  if (!client) {
+    console.warn('[DB] Supabase not configured - cannot check profile limits');
+    return 0;
+  }
+
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setHours(cutoffDate.getHours() - hoursAgo);
+
+    const { count, error } = await client
+      .from('message_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('adspower_profile', profileId)
+      .eq('status', 'sent')
+      .gte('timestamp', cutoffDate.toISOString());
+
+    if (error) {
+      console.error('[DB] Profile send count error:', error);
+      return 0;
+    }
+
+    return count ?? 0;
+  } catch (error: any) {
+    console.error('[DB] Profile send count exception:', error.message);
+    return 0;
+  }
+}

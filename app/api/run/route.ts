@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BolAutomation } from '@/lib/bol-automation';
-import { insertMessageLog } from '@/lib/supabase-db';
+import { insertMessageLog, countSendsForProfile } from '@/lib/supabase-db';
 
 // Edge Runtime doesn't support puppeteer, use Node.js runtime
 export const runtime = 'nodejs';
@@ -49,6 +49,20 @@ export async function POST(request: NextRequest) {
         error: 'No keywords provided'
       }, { status: 400 });
     }
+
+    // Profile rate limit: max 3 messages per profile per 48 hours
+    const sentLast48h = await countSendsForProfile(profileId, 48);
+    const maxPerProfile48h = 3;
+    if (sentLast48h >= maxPerProfile48h) {
+      console.log(`[API] Profile ${profileId} limit reached: ${sentLast48h} sends in last 48h`);
+      return NextResponse.json({
+        success: false,
+        error: `Profile limit reached: ${sentLast48h} messages sent in the last 48 hours (max ${maxPerProfile48h}). Try again later.`,
+        profileLimit: { sent: sentLast48h, max: maxPerProfile48h },
+        results: [],
+      });
+    }
+    const remainingProfileQuota = Math.max(0, maxPerProfile48h - sentLast48h);
 
     const results: any[] = [];
     const automation = new BolAutomation(profileId, cloudBrowserUrl, cloudBrowserApiKey);
@@ -104,12 +118,13 @@ export async function POST(request: NextRequest) {
         try {
           console.log(`[API] Processing keyword: ${keyword}`);
           
-          const sellers = await automation.searchProducts(keyword, sponsoredOnly);
+          const sellers = await automation.searchProducts(keyword, sponsoredOnly, remainingProfileQuota, 30);
           
           console.log(`[API] Found ${sellers.length} sellers for "${keyword}"`);
 
           let sentCount = 0;
-          const targetCount = messagesPerKeyword;
+          // Cap by the lower of: requested messages per keyword, or remaining 48h profile quota
+          const targetCount = Math.min(messagesPerKeyword, remainingProfileQuota);
 
           // Get enabled templates only
           const enabledTemplates = messageTemplates.filter((t: any) => t.enabled);

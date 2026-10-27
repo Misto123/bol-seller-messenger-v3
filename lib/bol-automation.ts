@@ -126,17 +126,21 @@ export class BolAutomation {
       return Array.from(unique.values());
     }, sponsoredOnly);
     
-    console.log(`[BOL] Found ${productLinks.length} products`);
+    // Always stay within the top 30 results (never lower)
+    const topLimit = Math.min(30, productLinks.length);
+    const topProducts = productLinks.slice(0, topLimit);
+    
+    console.log(`[BOL] Found ${productLinks.length} products (targeting top ${topProducts.length}, both sponsored + organic)`);
     
     if (productLinks.length === 0) {
       throw new Error(sponsoredOnly ? 'No sponsored products found' : 'No products found');
     }
     
     const sellers: Seller[] = [];
-    const maxCheck = Math.min(50, maxProductChecks, productLinks.length);
+    const maxCheck = Math.min(30, maxProductChecks, topProducts.length);
     
     for (let i = 0; i < maxCheck; i++) {
-      const product = productLinks[i];
+      const product = topProducts[i];
       console.log(`[BOL] Checking product ${i + 1}/${maxCheck}`);
       
       try {

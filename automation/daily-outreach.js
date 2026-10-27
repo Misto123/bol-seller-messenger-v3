@@ -2,7 +2,7 @@
 
 /**
  * Automated Daily BOL Seller Outreach
- * Sends 1 message per day at 09:00 AM to 1 unique seller
+ * Sends up to 3 messages per day to unique sellers
  */
 
 const https = require('https');
@@ -15,7 +15,7 @@ const REQUEST_TIMEOUT = 310000; // 5m10s - must exceed serverless 5-min limit so
 // Campaign configuration
 const CAMPAIGN = {
   keywords: ['powerbank', 'usb kabel', 'telefoonhoesje', 'oplader', 'headset'],
-  messagesPerKeyword: 1, // Only 1 message per run
+  messagesPerKeyword: 3, // Send up to 3 messages per run
   messageTemplates: [
     {
       enabled: true,
@@ -107,10 +107,10 @@ function apiRequest(path, method = 'GET', data = null) {
   });
 }
 
-// Check if a message was already sent today (prevents duplicate daily sends)
+// Check if the daily cap was already reached (3/day)
 async function sentTodayCount() {
   try {
-    const result = await apiRequest('/api/history?limit=200', 'GET');
+    const result = await apiRequest('/api/history?limit=300', 'GET');
     const logs = result.logs || result.campaigns || [];
     const today = new Date().toISOString().slice(0, 10);
     return logs.filter(l => (l.timestamp || '').slice(0, 10) === today && l.status === 'sent').length;
@@ -140,11 +140,13 @@ async function runDailyOutreach() {
     log(`Random delay: ${delayMs / 60000} min (sending ~${scheduledFor})`);
     await new Promise(resolve => setTimeout(resolve, delayMs));
     
-    // Guard: only send 1 message per day (prevents duplicates from cron overlap)
+    // Guard: daily cap of 3 messages (prevents duplicates from cron overlap)
     const alreadySent = await sentTodayCount();
-    if (alreadySent >= 1) {
-      log(`⏭️  Already sent ${alreadySent} message(s) today. Skipping to keep 1/day.`);
+    if (alreadySent >= 3) {
+      log(`⏭️  Already sent ${alreadySent} today. Daily cap (3) reached. Skipping.`);
       process.exit(0);
+    } else if (alreadySent > 0) {
+      log(`ℹ️  ${alreadySent} sent today already. Will send ${3 - alreadySent} more.`);
     }
     
     // Pick keyword for today
