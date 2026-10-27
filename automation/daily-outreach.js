@@ -10,6 +10,7 @@ const https = require('https');
 // Configuration
 const API_URL = 'https://bol-seller-messenger.vercel.app';
 const LOG_FILE = '/tmp/bol-daily-outreach.log';
+const REQUEST_TIMEOUT = 180000; // 3 minutes
 
 // Campaign configuration
 const CAMPAIGN = {
@@ -63,7 +64,8 @@ function apiRequest(path, method = 'GET', data = null) {
       method: method,
       headers: {
         'Content-Type': 'application/json',
-      }
+      },
+      timeout: REQUEST_TIMEOUT
     };
     
     if (data) {
@@ -90,6 +92,11 @@ function apiRequest(path, method = 'GET', data = null) {
     
     req.on('error', (err) => {
       reject(err);
+    });
+    
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Request timeout after ' + (REQUEST_TIMEOUT / 1000) + ' seconds'));
     });
     
     if (data) {
@@ -124,6 +131,7 @@ async function runDailyOutreach() {
     };
     
     log('Sending API request to /api/run...');
+    log(`Timeout set to ${REQUEST_TIMEOUT / 1000} seconds`);
     
     // Execute campaign
     const result = await apiRequest('/api/run', 'POST', payload);
