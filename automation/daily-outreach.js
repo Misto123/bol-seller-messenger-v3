@@ -10,7 +10,7 @@ const https = require('https');
 // Configuration
 const API_URL = 'https://bol-seller-messenger.vercel.app';
 const LOG_FILE = '/tmp/bol-daily-outreach.log';
-const REQUEST_TIMEOUT = 180000; // 3 minutes
+const REQUEST_TIMEOUT = 310000; // 5m10s - must exceed serverless 5-min limit so we get the response
 
 // Campaign configuration
 const CAMPAIGN = {
@@ -107,6 +107,19 @@ function apiRequest(path, method = 'GET', data = null) {
   });
 }
 
+// Check if a message was already sent today (prevents duplicate daily sends)
+async function sentTodayCount() {
+  try {
+    const result = await apiRequest('/api/history?limit=200', 'GET');
+    const logs = result.logs || result.campaigns || [];
+    const today = new Date().toISOString().slice(0, 10);
+    return logs.filter(l => (l.timestamp || '').slice(0, 10) === today && l.status === 'sent').length;
+  } catch (e) {
+    log(`⚠️ Could not check today's history: ${e.message}`);
+    return 0;
+  }
+}
+
 // Pick random keyword that hasn't been used recently
 async function pickKeyword() {
   // For simplicity, rotate through keywords
@@ -120,6 +133,13 @@ async function runDailyOutreach() {
   try {
     log('=== Starting Daily Outreach ===');
     
+    // Guard: only send 1 message per day (prevents duplicates from cron overlap)
+    const alreadySent = await sentTodayCount();
+    if (alreadySent >= 1) {
+      log(`⏭️  Already sent ${alreadySent} message(s) today. Skipping to keep 1/day.`);
+      process.exit(0);
+    }
+    
     // Pick keyword for today
     const keyword = await pickKeyword();
     log(`Selected keyword: ${keyword}`);
@@ -131,9 +151,9 @@ async function runDailyOutreach() {
     };
     
     log('Sending API request to /api/run...');
-    log(`Timeout set to ${REQUEST_TIMEOUT / 1000} seconds`);
+    log(`Timeout set to ${REQUEST_TIMEOUT / 1000} seconds (single attempt, no retries)`);
     
-    // Execute campaign
+    // Single attempt - retrying starts a SECOND campaign and duplicates sends
     const result = await apiRequest('/api/run', 'POST', payload);
     
     if (result.results && result.results.length > 0) {
