@@ -13,10 +13,11 @@ const LOG_FILE = '/tmp/bol-daily-outreach.log';
 const REQUEST_TIMEOUT = 310000; // 5m10s - must exceed serverless 5-min limit so we get the response
 
 // Browser profiles to rotate (3 messages/48h each). Add/remove profile IDs here.
+// Verified via Unified Browser API: k1fgmwtq=delia.roijen, j5xabn7=driesje.kwinten, jhbvfyc=john.bakker77
 const PROFILES = [
   'k1fgmwtq',
-  'PROFILE_2_PLACEHOLDER',
-  'PROFILE_3_PLACEHOLDER',
+  'j5xabn7',
+  'jhbvfyc',
 ];
 
 // Target keywords (rank & volume numbers excluded)
