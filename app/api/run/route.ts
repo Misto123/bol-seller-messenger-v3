@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
       messagesPerKeyword = 3,
       cooldownMinutes = 5,
       sponsoredOnly = false,
-      messageSpreadMinutes = 3
+      messageSpreadMinutes = 3,
+      profileId = 'k1fgmwtq'
     } = body;
 
     // Helper function to pick random item from array
@@ -34,7 +35,6 @@ export async function POST(request: NextRequest) {
     // Validate required environment variables
     const cloudBrowserUrl = process.env.CLOUD_BROWSER_URL;
     const cloudBrowserApiKey = process.env.CLOUD_BROWSER_API_KEY;
-    const profileId = 'k1fgmwtq'; // TODO: Make dynamic per user later
 
     if (!cloudBrowserUrl || !cloudBrowserApiKey) {
       return NextResponse.json({

@@ -12,10 +12,37 @@ const API_URL = 'https://bol-seller-messenger.vercel.app';
 const LOG_FILE = '/tmp/bol-daily-outreach.log';
 const REQUEST_TIMEOUT = 310000; // 5m10s - must exceed serverless 5-min limit so we get the response
 
+// Browser profiles to rotate (3 messages/48h each). Add/remove profile IDs here.
+const PROFILES = [
+  'k1fgmwtq',
+  'PROFILE_2_PLACEHOLDER',
+  'PROFILE_3_PLACEHOLDER',
+];
+
+// Target keywords (rank & volume numbers excluded)
+const TARGET_KEYWORDS = [
+  'fohnborstel', 'ramenwasser', 'usb c adapter', 'beamer', 'first aid kit',
+  'smartwatch kind', 'matrasbeschermer 180 x 200', 'smartwatch kinderen',
+  'draadloze sport oordopjes', 'pocket pussy', 'sex toys voor mannen',
+  'powerbank 10000 mah', 'i9 pc', 'telefoonhouder fiets',
+  'robotstofzuiger met laadstation', 'robotstofzuiger huisdieren',
+  'multistyler', 'ergonomische bureaustoel', 'sex toys voor vrouwen',
+  'gilette fusion 5', 'luchtbevochtiger', 'scheermesjes',
+  'matrasbeschermer 140x200', 'douchekoppen', 'heating pad',
+  'massagekussen', 'matrasbeschermer 160x200',
+  'robotstofzuiger met dweilfunctie', 'koolmonoxidemelder', 'borstkolf',
+  'powerbank', 'masturbator voor man', 'traphekje', 'blauw licht bril',
+  'magsafe powerbank', 'spider bottle', 'douchekop', 'douchewisser',
+  'mini powerbank', 'intel desktop pc', 'oplader iphone', 'brandmelder',
+  'geschikt voor ps4', 'laptop standaard', 'ruitenreiniger',
+  'oortjes draadloos', 'wekker', 'krulborstel', 'vloertrekker',
+  'bone conduction headphone',
+];
+
 // Campaign configuration
 const CAMPAIGN = {
-  keywords: ['powerbank', 'usb kabel', 'telefoonhoesje', 'oplader', 'headset'],
-  messagesPerKeyword: 3, // Send up to 3 messages per run
+  keywords: TARGET_KEYWORDS,
+  messagesPerKeyword: 3, // Per profile run (3 messages per profile)
   messageTemplates: [
     {
       enabled: true,
@@ -140,59 +167,65 @@ async function runDailyOutreach() {
     log(`Random delay: ${delayMs / 60000} min (sending ~${scheduledFor})`);
     await new Promise(resolve => setTimeout(resolve, delayMs));
     
-    // Guard: daily cap of 3 messages (prevents duplicates from cron overlap)
+    // Daily total cap: 9 messages per day (3 per profile across 3 profiles)
+    const DAILY_CAP = 9;
     const alreadySent = await sentTodayCount();
-    if (alreadySent >= 3) {
-      log(`⏭️  Already sent ${alreadySent} today. Daily cap (3) reached. Skipping.`);
+    if (alreadySent >= DAILY_CAP) {
+      log(`⏭️  Already sent ${alreadySent} today. Daily cap (${DAILY_CAP}) reached. Skipping.`);
       process.exit(0);
-    } else if (alreadySent > 0) {
-      log(`ℹ️  ${alreadySent} sent today already. Will send ${3 - alreadySent} more.`);
     }
-    
-    // Pick keyword for today
-    const keyword = await pickKeyword();
-    log(`Selected keyword: ${keyword}`);
-    
-    // Prepare campaign payload
-    const payload = {
-      ...CAMPAIGN,
-      keywords: [keyword] // Only one keyword
-    };
-    
-    log('Sending API request to /api/run...');
-    log(`Timeout set to ${REQUEST_TIMEOUT / 1000} seconds (single attempt, no retries)`);
-    
-    // Single attempt - retrying starts a SECOND campaign and duplicates sends
-    const result = await apiRequest('/api/run', 'POST', payload);
-    
-    if (result.results && result.results.length > 0) {
-      const sentMessages = result.results.filter(r => r.status === 'sent');
-      const skippedMessages = result.results.filter(r => r.status === 'skipped');
-      const failedMessages = result.results.filter(r => r.status === 'failed');
-      
-      log(`Results: ${sentMessages.length} sent, ${skippedMessages.length} skipped, ${failedMessages.length} failed`);
-      
-      if (sentMessages.length > 0) {
-        sentMessages.forEach(msg => {
-          log(`✅ Sent to ${msg.seller}: ${msg.subject}`);
-        });
-      }
-      
-      if (skippedMessages.length > 0) {
-        skippedMessages.forEach(msg => {
-          log(`⏭️  Skipped ${msg.seller}: ${msg.reason}`);
-        });
-      }
-      
-      if (failedMessages.length > 0) {
-        failedMessages.forEach(msg => {
-          log(`❌ Failed ${msg.seller}: ${msg.reason}`);
-        });
-      }
-    } else {
-      log('⚠️  No results returned from API');
+    const remainingDaily = DAILY_CAP - alreadySent;
+    if (remainingDaily < DAILY_CAP) {
+      log(`ℹ️  ${alreadySent} sent today already. Sending up to ${remainingDaily} more.`);
     }
-    
+
+    // Loop over profiles, each run targets up to 3 messages (48h per-profile limit)
+    // Skip placeholder IDs so the cron never fires invalid profiles
+    const activeProfiles = PROFILES.filter(p => p && !p.includes('PLACEHOLDER'));
+    let totalSent = alreadySent;
+    for (let p = 0; p < activeProfiles.length; p++) {
+      if (totalSent >= DAILY_CAP) break;
+
+      const profileId = activeProfiles[p];
+      const dailyQuota = Math.min(3, remainingDaily - (totalSent - alreadySent));
+      if (dailyQuota <= 0) break;
+
+      const keyword = await pickKeyword();
+      log(`[Profile ${profileId}] keyword: "${keyword}" (up to ${dailyQuota} msgs)`);
+
+      const payload = {
+        ...CAMPAIGN,
+        keywords: [keyword],
+        messagesPerKeyword: dailyQuota,
+        profileId,
+      };
+
+      log(`Calling /api/run for ${profileId}...`);
+      const result = await apiRequest('/api/run', 'POST', payload);
+
+      const sentMessages = (result.results || []).filter(r => r.status === 'sent');
+      const skippedMessages = (result.results || []).filter(r => r.status === 'skipped');
+      const failedMessages = (result.results || []).filter(r => r.status === 'failed');
+
+      log(`  → ${sentMessages.length} sent, ${skippedMessages.length} skipped, ${failedMessages.length} failed`);
+      sentMessages.forEach(msg => log(`  ✅ Sent to ${msg.seller}`));
+      skippedMessages.forEach(msg => log(`  ⏭️  Skipped ${msg.seller}: ${msg.reason}`));
+      failedMessages.forEach(msg => log(`  ❌ Failed ${msg.seller}: ${msg.reason}`));
+
+      if (result.error && !result.results) {
+        log(`  ⚠️ ${result.error}`);
+      }
+
+      totalSent += sentMessages.length;
+
+      // Small human-like pause between profiles
+      if (p < activeProfiles.length - 1 && totalSent < DAILY_CAP) {
+        const pauseMs = (30 + Math.floor(Math.random() * 60)) * 1000;
+        log(`Pausing ${pauseMs / 1000}s between profiles...`);
+        await new Promise(resolve => setTimeout(resolve, pauseMs));
+      }
+    }
+
     log('=== Daily Outreach Complete ===');
     process.exit(0);
     

@@ -10,6 +10,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Deployment Infrastructure
 
+## Default Login Password
+
+If you need to log in somewhere, always try password `rereeu` first on platforms we have built — this is usually our default login.
+
 ## VPS Server for Script Deployment
 
 **Purpose:** Deploy and run Node.js scripts, Docker containers, and automation services
